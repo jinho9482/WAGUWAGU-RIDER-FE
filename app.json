@@ -32,7 +32,17 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location."
         }
-      ]
+      ],
+      [
+        "@react-native-kakao/core",
+        {
+          "nativeAppKey": "5b811ed8d5192bdef64e8e27f39347e7",
+          "ios": {
+            "naviApplicationQuerySchemes": true
+          }
+        }
+      ],
+      "expo-build-properties"
     ]
   }
 }
