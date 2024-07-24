@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { useNavigation } from "@react-navigation/native";
 
 const LoginScreen = () => {
-    const navigation = useNavigation(); // useNavigation 훅을 컴포넌트 최상위에서 호출
+    const navigation = useNavigation();
 
     const handleLogin = () => {
         // 로그인 성공 시 KaKaoLogin 화면으로 이동
@@ -22,7 +22,7 @@ const LoginScreen = () => {
                     style={styles.logoImage}
                     resizeMode="contain"
                 />
-                <Text style={styles.logoText}>킹왕짱 김부자 어플ㅋㅋ</Text>
+                <Text style={styles.logoText}>킹왕짱 배달 어플ㅋㅋ</Text>
                 <TouchableOpacity onPress={handleLogin}>
                     <Image
                         source={require('../assets/kakao_login_medium_wide.png')}

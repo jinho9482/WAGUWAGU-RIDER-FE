@@ -8,3 +8,7 @@ export const updateInfo = async (data) => {
   const res = await api("/riders", "put",data);
   return res;
 };
+export const saveActivityArea = async (data) => {
+  const res = await api("/riders?activityArea="+data, "post");
+  return res;
+};
