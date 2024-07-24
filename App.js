@@ -1,10 +1,9 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import KakaoMap from './components/KakaoMap';
+import { Clipboard, Image, Linking, Platform, StyleSheet, Text, ToastAndroid, TouchableOpacity, View } from 'react-native';
 import WebView from 'react-native-webview';
 import { useEffect, useState } from 'react';
 import * as Location from 'expo-location';
 import { changeActivationState } from './api/RiderApi';
-import { getDeliveryRequests } from './api/DeliveryRequest';
+import { deleteDeliveryRequest, getDeliveryRequests } from './api/DeliveryRequestApi';
 
 
 
@@ -19,6 +18,45 @@ export default function App() {
   const [mapHtml, setMapHtml] = useState("");
   const [orderedItem, setOrderedItem] = useState(null);
   const [activationButtonDisabled, setActivationButtonDisabled] = useState(false);
+  const [deliveryButtonText, setDeliveryButtonText] = useState("이동하시겠습니까?");
+
+
+  const onShouldStartLoadWithRequest = (event) => {
+    const { url } = event;
+  
+    if (Platform.OS === 'android' && url.includes('intent')) {
+      console.log("Android intent detected:", url);
+  
+      const fallbackURL = url.split('S.browser_fallback_url=')[1]?.split(';')[0];
+      console.log("Fallback URL:", fallbackURL);
+  
+      Linking.canOpenURL((url))
+        .then((supported) => {
+          if (supported) {
+            console.log("Opening intent URL:", url);
+            return Linking.openURL((url));
+          } else if (fallbackURL) {
+            console.log("Intent not supported, opening fallback URL:", fallbackURL);
+            return Linking.openURL(decodeURIComponent(fallbackURL));
+          } else {
+            ToastAndroid.show('앱 실행에 실패했습니다.', ToastAndroid.SHORT);
+            console.log("No fallback URL available.");
+          }
+        })
+        .catch((err) => {
+          console.error("Error opening URL:", err);
+        });
+  
+      return false;
+    } else {
+      Linking.openURL(url).catch(err => {
+        alert('앱 실행에 실패했습니다. 설치가 되어있지 않은 경우 설치하기 버튼을 눌러주세요.');
+        console.error("Error opening URL:", err);
+      });
+  
+      return false;
+    }
+  };
 
   const setCurrentLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -36,7 +74,7 @@ export default function App() {
 
   const clickOnActivationButton = async () => {
     if (activationText === "활성화") {
-      setActivationText("비활성화")
+      setActivationText("비활성화");
       setActivationState("현재 온라인 상태입니다.");
       await changeActivationState(46, "on");
       const res = await getDeliveryRequests(46, {latitude: location.coords.latitude, longitude: location.coords.longitude});
@@ -46,10 +84,11 @@ export default function App() {
       setActivationState("현재 오프라인 상태입니다.");
       await changeActivationState(46, "off");
       setDeliveryRequests(null);
-    }
+    };
   };
 
   const generateMapHtml = () => {
+    console.log(location);
     if (location) {
       return `
       <!DOCTYPE html>
@@ -57,33 +96,22 @@ export default function App() {
       <head>
         <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
         <title>Kakao 지도 시작하기</title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/react/17.0.2/umd/react.production.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/17.0.2/umd/react-dom.production.min.js"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/6.26.0/babel.min.js"></script>
         <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a6546188cab40bea0d30c30a1d2c578d&libraries=services"></script>
       </head>
       <body>
-        <div id="root"></div>
-        <script type="text/babel">
-          const { useEffect, useState } = React;
+        <div id="map" style="width:100%;height:100vh;"></div>
+        <script>
           
           const KakaoMap = () => {
-            const [kakaoMap, setKakaoMap] = useState(null);    
+            const mapContainer = document.getElementById('map');
+            const locPosition = new kakao.maps.LatLng(${location.coords.latitude}, ${location.coords.longitude});  
+            const mapOption = {
+              center: locPosition,
+              level: 6,
+            };
+            const map = new kakao.maps.Map(mapContainer, mapOption);
             
-            useEffect(() => {
-              const mapContainer = document.getElementById('map');
-              const locPosition = new kakao.maps.LatLng(${location.coords.latitude}, ${location.coords.longitude});  
-              const mapOption = {
-                center: locPosition,
-                level: 3,
-              };
-              setKakaoMap(new kakao.maps.Map(mapContainer, mapOption)); 
-            }, []);
-            
-            
-
             if (${JSON.stringify(deliveryRequests)} && ${JSON.stringify(deliveryRequests)}.length > 0) {
-
               for (const req of ${JSON.stringify(deliveryRequests)}) {
                 const iwContent = '<div style="padding:5px; width:100%";>' + req.storeName + '<br>' + req.deliveryPay + '원<br>' + req.distanceFromStoreToRider + 'km</div>' // 인포윈도우에 표출될 내용으로 HTML 문자열이나 document element가 가능합니다
                 const markerPosition = new kakao.maps.LatLng(req.storeLatitude, req.storeLongitude); //인포윈도우 표시 위치입니다
@@ -93,22 +121,21 @@ export default function App() {
                     clickable: true
                 });
                 // 마커가 지도 위에 표시되도록 설정합니다
-                marker.setMap(kakaoMap);
+                marker.setMap(map);
                 const infowindow = new kakao.maps.InfoWindow({
                     position : markerPosition, 
                     content : iwContent 
                 });
-                infowindow.open(kakaoMap, marker);
+                infowindow.open(map, marker);
                 
                 kakao.maps.event.addListener(marker, 'click', function() {
                   // 마커 위에 인포윈도우를 표시합니다
                   if (confirm("배달 신청하시겠습니까?")) {
                     window.ReactNativeWebView.postMessage(JSON.stringify(req));
-                  }
+                  };
                 });
               };
             };
-
             const imageSrc = '${localImage}', // 마커이미지의 주소입니다    
               imageSize = new kakao.maps.Size(53, 50), // 마커이미지의 크기입니다
               imageOption = {offset: new kakao.maps.Point(27, 69)}; // 마커이미지의 옵션입니다. 마커의 좌표와 일치시킬 이미지 안에서의 좌표를 설정합니다.
@@ -121,17 +148,51 @@ export default function App() {
                 position: markerPosition, 
                 image: markerImage // 마커이미지 설정 
             });
-            marker.setMap(kakaoMap);
-            return <div id="map" style={{width:"100vw", height:"100vh"}}></div>
+            marker.setMap(map);
           };
-          
+          KakaoMap();
+          // return <div id="map" style={{width:"100vw", height:"100vh"}}></div>
 
-          ReactDOM.render(<KakaoMap />, document.getElementById('root'));
+          // ReactDOM.render(<KakaoMap />, document.getElementById('root'));
         </script>
       </body>
       </html>
       `;
     };
+  };
+
+  const turnOnNavi = () => {
+    // console.log("내비게이션 on");
+    return `
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8" />
+        <title>Kakao JavaScript SDK</title>
+        <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4" crossorigin="anonymous">
+        </script>
+        <script>
+          Kakao.init('a6546188cab40bea0d30c30a1d2c578d'); // 사용하려는 앱의 JavaScript 키 입력
+          console.log(Kakao.isInitialized());
+        </script>
+      </head>
+      <body>
+        <a id="start-navigation" href="javascript:startNavigation()">
+          길 안내하기 버튼 
+        </a>
+        <script>
+          function startNavigation() {
+            Kakao.Navi.start({
+              name: '현대백화점 판교점',
+              x: 127.11205203011632,
+              y: 37.39279717586919,
+              coordType: 'wgs84',
+            });
+          }
+        </script>
+      </body>
+    </html>
+    `;
   };
 
   
@@ -147,21 +208,59 @@ export default function App() {
       const currentLocation = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.High
       });
-      console.log(currentLocation);
+      // console.log(currentLocation);
       setLocation(currentLocation); 
     })();
   }, []);
   
   useEffect(() => {
     setMapHtml(generateMapHtml());
+    // console.log(mapHtml);
   }, [location, deliveryRequests]);  
+
+  // useEffect(() => {
+  //   setNaviHtml(turnOnNavi());
+  //   // console.log(mapHtml);
+  // }, [naviHtml]);  
 
 
   const handleMessage = (event) => {
     console.log(event);
     setActivationButtonDisabled(true);
     setOrderedItem(JSON.parse(event.nativeEvent.data));
+    console.log(event.nativeEvent.data);
+    setDeliveryRequests(null);
   };
+
+  const updateDeliveryState = async () => {
+    if (deliveryButtonText === "이동하시겠습니까?") setDeliveryButtonText("픽업 완료 & 배달 시작");
+    else if (deliveryButtonText === "픽업 완료 & 배달 시작") {
+      setDeliveryButtonText("배달 완료"); 
+      // 주문 상태 -> 배달 시작으로 업데이트 필요 (주문 도메인에서)
+      
+    } 
+    else {
+      // 배달 완료 건은 redis에서 삭제 및 postgres에 저장
+      console.log(orderedItem.deliveryRequestId);
+      await deleteDeliveryRequest(orderedItem.deliveryRequestId);
+      // 주문 수락 건 창 끄고 기본값으로 세팅
+      setOrderedItem(null);
+      setDeliveryButtonText("이동하시겠습니까?");
+      // 비활성화 버튼 다시 활성화
+      setActivationButtonDisabled(false);
+      // 주문 상태 -> 배달 완료로 업데이트 필요 (주문 도메인에서)
+      
+
+      // 다시 요청 목록 띄워줌
+      const res = await getDeliveryRequests(46, {latitude: location.coords.latitude, longitude: location.coords.longitude});
+      setDeliveryRequests(res);
+    };
+  };
+
+  const copyToClipboard = () => {
+    Clipboard.setString(orderedItem.storeAddress);
+  };
+  
 
   return (
     <View style={styles.webviewContainer}>
@@ -171,36 +270,66 @@ export default function App() {
           source={{ html: mapHtml }}
           onMessage={handleMessage}
         />
-      <Pressable style={styles.menu}>
+      <TouchableOpacity style={styles.menu}>
         <Text style={styles.menuText}>☰</Text>
-      </Pressable>
+      </TouchableOpacity >
       <View style={styles.amount}>
         <Text style={styles.amountText}>30000원</Text>
       </View>
-      <Pressable style={styles.gps} onPress={setCurrentLocation}>
+      <TouchableOpacity style={styles.gps} onPress={setCurrentLocation}>
         <Text style={styles.gpsText}>➤</Text>
-      </Pressable>
+      </TouchableOpacity>
       {orderedItem && activationText === "비활성화" && 
       <View style={styles.orderedItem}>
-        <Text style={styles.orderedItemTitle}>수락한 가게 정보를 안내 드려요</Text>
+        <View style={styles.copyContainer}>
+          <Text style={styles.orderedItemTitle}>수락한 가게 정보를 안내 드려요</Text>
+          <TouchableOpacity style={styles.copyButton} onPress={copyToClipboard}>
+            <Text style={styles.copyText}>주소 복사</Text>
+          </TouchableOpacity>
+        </View>
         <Text style={styles.orderedItemContents}>{orderedItem.storeName}</Text>
         <Text style={styles.orderedItemContents}>{orderedItem.storeAddress}</Text>
-        <Pressable style={styles.orderedItemButton}>
-          <Text style={styles.orderedItemButtonText}>이동하시겠습니까?</Text>
-        </Pressable>
+        <TouchableOpacity style={styles.orderedItemButton} onPress={updateDeliveryState}>
+          <Text style={styles.orderedItemButtonText}>{deliveryButtonText}</Text>
+        </TouchableOpacity>
       </View>
       }
-      <Pressable style={styles.activationButton} onPress={clickOnActivationButton} disabled={activationButtonDisabled}>
+      <TouchableOpacity style={styles.activationButton} onPress={clickOnActivationButton} disabled={activationButtonDisabled}>
         <Text style={styles.activationText}>{activationText}</Text>
-      </Pressable>
+      </TouchableOpacity>
       <Text style={styles.activationState}>{activationState}</Text>
+      {/* <WebView style={styles.kakaoNavi} source={{ html: turnOnNavi()}} originWhitelist={['*']} onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}/> */}
     </View>
   );
-}
-
+};
+// 
 const styles = StyleSheet.create({
+  // kakaoNavi: {
+  //   height: 10,
+  // },
+
+  copyContainer: {
+    flexDirection: "row",
+    columnGap: 20,
+    justifyContent: 'space-between'
+  },
+  
+  copyButton: {
+    // marginTop: 10,
+    borderRadius: 50,
+    padding: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "white"
+  },
+
+  copyText: {
+    fontSize: 12,
+    fontWeight: '600'
+  },
+
   webviewContainer: {
-    flex: 1
+    flex: 1,
   },
 
   
@@ -264,8 +393,6 @@ const styles = StyleSheet.create({
     left: "5%",
     borderRadius: 20,
     width: "89%",
-    // height: 90,
-    backgroundColor: "#94D35C",
     padding: 15,
     backgroundColor: "rgba(73, 195, 247, 0.8)",
 
@@ -286,7 +413,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 50,
     padding: 10,
-    backgroundColor: "#94D35C",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "white"
