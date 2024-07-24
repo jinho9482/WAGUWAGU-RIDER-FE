@@ -6,33 +6,38 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import RNPickerSelect from 'react-native-picker-select';
 
 const SignupScreen = ({ navigation }) => {
-    const [riderEmail, setRiderEmail] = useState('');
-    const [riderId, setRiderId] = useState(0);
-    const [riderNickname, setRiderNickname] = useState('');
-    const [riderPhone, setRiderPhone] = useState('');
-    const [riderAccount, setRiderAccount] = useState('');
-    const [riderTransportation, setRiderTransportation] = useState('');
-    const [riderActivityAreas, setRiderActivityAreas] = useState(['']);
+    const [rider, setRider] = useState(null);
+    const [riderActivityAreas, setRiderActivityAreas] = useState([]);
 
     useEffect(() => {
         const fetchRiderInfo = async () => {
             try {
                 const res = await getInfo();
                 if (res.status === 200) {
-                    const { riderEmail, riderNickname, riderPhone, riderTransportation, riderAccount, riderId, riderIsDeleted } = res.data;
+                    const { rider, activityAreas } = res.data;
 
-                    if (riderAccount === null) {
-                        setRiderEmail(riderEmail);
-                        setRiderNickname(riderNickname);
-                        setRiderId(riderId);
+                    if (!rider.riderAccount) {
+                        // If riderAccount is null, set rider details for signing up
+                        setRider({
+                            riderId: rider.riderId,
+                            riderEmail: rider.riderEmail,
+                            riderNickname: rider.riderNickname,
+                            riderPhone: rider.riderPhone,
+                            riderTransportation: rider.riderTransportation,
+                            riderAccount: rider.riderAccount,
+                            riderActivate: rider.riderActivate,
+                            riderIsDeleted: rider.riderIsDeleted
+                        });
+                        setRiderActivityAreas(activityAreas.map(area => area.riderActivityArea));
                     } else {
+                        // If riderAccount is not null, navigate to the main screen
                         navigation.replace('Main');
-                        await AsyncStorage.setItem('riderId', JSON.stringify(riderId));
-                        await AsyncStorage.setItem('riderNickname', riderNickname);
-                        await AsyncStorage.setItem('riderEmail', riderEmail);
-                        await AsyncStorage.setItem('riderAccount', riderAccount);
-                        await AsyncStorage.setItem('riderPhone', riderPhone);
-                        await AsyncStorage.setItem('riderTransportation', riderTransportation);
+                        await AsyncStorage.setItem('riderId', JSON.stringify(rider.riderId));
+                        await AsyncStorage.setItem('riderNickname', rider.riderNickname);
+                        await AsyncStorage.setItem('riderEmail', rider.riderEmail);
+                        await AsyncStorage.setItem('riderAccount', rider.riderAccount);
+                        await AsyncStorage.setItem('riderPhone', rider.riderPhone);
+                        await AsyncStorage.setItem('riderTransportation', rider.riderTransportation);
                     }
                 }
             } catch (error) {
@@ -53,13 +58,12 @@ const SignupScreen = ({ navigation }) => {
             }
 
             const dataToSave = nonEmptyAreas.map(area => ({
-                riderId: riderId,
+                riderId: rider.riderId,
                 riderActivityArea: area
             }));
 
             for (const data of dataToSave) {
-                console.log(data);
-                const res = await saveActivityArea(data.riderActivityArea);
+                const res = await saveActivityArea(data);
                 if (res.status !== 200) {
                     Alert.alert('배달 지역 저장 실패', '배달 지역 저장에 실패했습니다. 다시 시도해주세요.');
                     return;
@@ -77,15 +81,15 @@ const SignupScreen = ({ navigation }) => {
         const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const phonePattern = /^\d{11}$/;
 
-        if (!emailPattern.test(riderEmail)) {
+        if (!emailPattern.test(rider.riderEmail)) {
             Alert.alert('유효하지 않은 이메일', '올바른 이메일 형식이 아닙니다!');
             return;
         }
-        if (!riderEmail || !riderNickname || !riderPhone || riderActivityAreas.some(area => !area.trim())) {
+        if (!rider.riderEmail || !rider.riderNickname || !rider.riderPhone || riderActivityAreas.some(area => !area.trim())) {
             Alert.alert('빈 칸 오류', '빈 칸 없이 모두 입력해주세요!');
             return;
         }
-        if (!phonePattern.test(riderPhone)) {
+        if (!phonePattern.test(rider.riderPhone)) {
             Alert.alert('유효하지 않은 전화번호', '전화번호는 11자리 숫자로 입력해주세요!');
             return;
         }
@@ -94,10 +98,11 @@ const SignupScreen = ({ navigation }) => {
             await saveArea();
 
             const res = await updateInfo({
-                riderNickname: riderNickname,
-                riderPhone: riderPhone,
-                riderTransportation: riderTransportation,
-                riderAccount: riderAccount,
+                riderId: rider.riderId,
+                riderNickname: rider.riderNickname,
+                riderPhone: rider.riderPhone,
+                riderTransportation: rider.riderTransportation,
+                riderAccount: rider.riderAccount,
                 riderActivate: true,
                 riderIsDeleted: false
             });
@@ -149,29 +154,29 @@ const SignupScreen = ({ navigation }) => {
                 <View style={styles.infoBox}>
                     <Text style={styles.infoText}>이메일</Text>
                     <TextInput
-                        style={[styles.input, riderEmail && styles.disabledInput]}
+                        style={[styles.input, rider && styles.disabledInput]}
                         placeholder="Email"
-                        value={riderEmail}
-                        onChangeText={setRiderEmail}
+                        value={rider?.riderEmail || ''}
+                        onChangeText={(text) => setRider({ ...rider, riderEmail: text })}
                         editable={false}
                     />
                     <Text style={styles.infoText}>닉네임</Text>
                     <TextInput
                         style={styles.input}
                         placeholder="Nickname"
-                        value={riderNickname}
-                        onChangeText={setRiderNickname}
+                        value={rider?.riderNickname || ''}
+                        onChangeText={(text) => setRider({ ...rider, riderNickname: text })}
                     />
                     <Text style={styles.infoText}>전화번호</Text>
                     <TextInput
                         style={styles.input}
                         placeholder="Phone"
-                        value={riderPhone}
-                        onChangeText={setRiderPhone}
+                        value={rider?.riderPhone || ''}
+                        onChangeText={(text) => setRider({ ...rider, riderPhone: text })}
                         keyboardType="numeric"
                     />
                     <Text style={styles.infoText}>활동지역</Text>
-                    {riderActivityAreas && riderActivityAreas.map((area, index) => (
+                    {riderActivityAreas.map((area, index) => (
                         <View key={index} style={styles.activityContainer}>
                             <TextInput
                                 style={styles.activityInput}
@@ -207,12 +212,12 @@ const SignupScreen = ({ navigation }) => {
                     <TextInput
                         style={styles.input}
                         placeholder="Account"
-                        value={riderAccount}
-                        onChangeText={setRiderAccount}
+                        value={rider?.riderAccount || ''}
+                        onChangeText={(text) => setRider({ ...rider, riderAccount: text })}
                     />
                     <Text style={styles.infoText}>배달수단</Text>
                     <RNPickerSelect
-                        onValueChange={(value) => setRiderTransportation(value)}
+                        onValueChange={(value) => setRider({ ...rider, riderTransportation: value })}
                         items={[
                             { label: 'Walk', value: 'WALK' },
                             { label: 'Bicycle', value: 'BICYCLE' },
@@ -221,6 +226,7 @@ const SignupScreen = ({ navigation }) => {
                         ]}
                         style={pickerStyles}
                         placeholder={{ label: '배달 수단 선택...', value: null }}
+                        value={rider?.riderTransportation || null}
                     />
                     <TouchableOpacity onPress={handleSignup}>
                         <SpeechBubble

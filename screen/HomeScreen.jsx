@@ -7,7 +7,7 @@ import { deleteDeliveryRequest, getDeliveryRequests } from '../api/DeliveryReque
 
 
 
-export default function HomeScreen() {
+export default function HomeScreen({ navigation }) {
 
     const localImage = Image.resolveAssetSource(require('../assets/my-location-marker.png')).uri;
     const [location, setLocation] = useState(null); // 내 주소를 기본 값으로
@@ -270,7 +270,8 @@ export default function HomeScreen() {
                 source={{ html: mapHtml }}
                 onMessage={handleMessage}
             />
-            <TouchableOpacity style={styles.menu}>
+            <TouchableOpacity style={styles.menu}
+                              onPress={() => navigation.openDrawer()}>
                 <Text style={styles.menuText}>☰</Text>
             </TouchableOpacity >
             <View style={styles.amount}>

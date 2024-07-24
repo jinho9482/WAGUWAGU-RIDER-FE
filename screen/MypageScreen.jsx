@@ -1,84 +1,65 @@
 import React, { useState, useEffect } from 'react';
-import {View, Image, StyleSheet, Text, TouchableOpacity, TextInput, Alert, ScrollView} from 'react-native';
+import { View, Image, StyleSheet, Text, TouchableOpacity, TextInput, Alert, ScrollView, Button } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import SpeechBubble from '../components-common/SpeechBubble';
-import {getInfo, updateInfo} from "../api/authApi";
-import axios from "axios";
-
-const KAKAO_API_KEY = 'f8609808f0ad80f284bc679eb3d80315';
+import { getInfo, updateInfo } from "../api/authApi";
+import RNPickerSelect from "react-native-picker-select";
 
 const MyPage = ({ navigation }) => {
     const [modify, setModify] = useState(false);
-    const [customerNickname, setCustomerNickname] = useState('');
-    const [customerEmail, setCustomerEmail] = useState('');
-    const [customerAddress, setCustomerAddress] = useState('');
-    const [customerPhone, setCustomerPhone] = useState('');
-    const [customerLatitude, setCustomerLatitude] = useState(0.0);
-    const [customerLongitude, setCustomerLongitude] = useState(0.0);
-
-    const handleAddressChange = async () => {
-        if (!customerAddress.trim()) {
-            Alert.alert("주소 오류", "주소를 입력해주세요.");
-            return;
-        }
-
-        try {
-            const response = await axios.get(`https://dapi.kakao.com/v2/local/search/address.json`, {
-                params: {
-                    query: customerAddress,
-                },
-                headers: {
-                    Authorization: `KakaoAK ${KAKAO_API_KEY}`, // API 키를 헤더에 포함
-                },
-            });
-
-            const { documents } = response.data;
-            if (documents.length > 0) {
-                const { x, y } = documents[0].address; // 카카오는 x(경도), y(위도)를 반환합니다.
-                setCustomerLatitude(parseFloat(y));
-                setCustomerLongitude(parseFloat(x));
-                Alert.alert("주소 찾기 성공", "주소를 찾았습니다.");
-            } else {
-                Alert.alert("주소 찾기 실패", "주소를 찾을 수 없습니다.");
-            }
-        } catch (error) {
-            console.error("주소를 변환하는 중 오류가 발생했습니다:", error);
-            Alert.alert("Error", "주소를 변환하는 중 오류가 발생했습니다.");
-        }
-    };
+    const [riderNickname, setRiderNickname] = useState('');
+    const [riderEmail, setRiderEmail] = useState('');
+    const [riderPhone, setRiderPhone] = useState('');
+    const [riderAccount, setRiderAccount] = useState('');
+    const [riderTransportation, setRiderTransportation] = useState('');
+    const [activityAreas, setActivityAreas] = useState([]);
 
     useEffect(() => {
-        const fetchCustomerInfo = async () => {
+        const fetchRiderInfo = async () => {
             try {
                 const res = await getInfo();
                 if (res.status === 200) {
                     const {
-                        customerEmail,
-                        customerNickname,
-                        customerAddress,
-                    } = res.data;
-                    if (customerNickname) setCustomerNickname(customerNickname);
-                    if (customerEmail) setCustomerEmail(customerEmail);
-                    if (customerAddress) setCustomerAddress(customerAddress);
+                        riderId,
+                        riderNickname,
+                        riderEmail,
+                        riderPhone,
+                        riderAccount,
+                        riderTransportation
+                    } = res.data.rider;
+
+                    const areas = res.data.activityAreas.map(area => area.riderActivityArea);
+
+                    setRiderNickname(riderNickname || '');
+                    setRiderEmail(riderEmail || '');
+                    setRiderPhone(riderPhone || '');
+                    setRiderAccount(riderAccount || '');
+                    setRiderTransportation(riderTransportation || '');
+                    setActivityAreas(areas);
                 }
             } catch (error) {
                 console.log("사용자 정보 불러오는 중 에러", error);
                 Alert.alert("Error", "사용자 정보를 불러오는 중 에러가 발생했습니다.");
             }
-        }
-        fetchCustomerInfo();
+        };
+        fetchRiderInfo();
     }, []);
 
     const handleModify = async () => {
         if (modify) {
             try {
-                await AsyncStorage.setItem('customerNickname', customerNickname);
-                await AsyncStorage.setItem('customerAddress', customerEmail);
+                await AsyncStorage.setItem('riderNickname', riderNickname);
+                await AsyncStorage.setItem('riderPhone', riderPhone);
                 try {
-                    const res = await updateInfo({ customerNickname, customerAddress, customerLatitude, customerLongitude });
+                    const res = await updateInfo({
+                        riderNickname,
+                        riderPhone,
+                        riderAccount,
+                        riderTransportation
+                    });
                     if (res.status === 200) {
                         Alert.alert('정보 수정 성공', '정보 수정이 완료되었습니다!');
-                        // navigation.replace('Main');
+                        // navigation.replace('Main'); // Uncomment if you want to navigate after successful update
                     } else {
                         Alert.alert('정보 수정 실패', '정보 수정에 실패했습니다. 다시 시도해주세요.');
                     }
@@ -95,16 +76,24 @@ const MyPage = ({ navigation }) => {
         }
     };
 
+    const handleAddActivityArea = () => {
+        // Functionality to add a new activity area
+        Alert.alert("추가 기능", "활동 지역 추가 기능은 아직 구현되지 않았습니다.");
+    };
+
     return (
-        <ScrollView>
-            <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.container}>
+            <TouchableOpacity style={styles.menu} onPress={() => navigation.openDrawer()}>
+                <Text style={styles.menuText}>☰</Text>
+            </TouchableOpacity>
+            <View style={styles.profileContainer}>
                 <View style={styles.profile}>
                     <Image
-                        source={require('../assets/Vector.png')}
+                        source={require('../assets/베스트개발자.png')}
                         style={styles.profileImage}
-                        resizeMode="cover" // Adjust this as needed
+                        resizeMode="cover"
                     />
-                    <Text style={styles.greeting}>먹짱! {customerNickname}</Text>
+                    <Text style={styles.greeting}>배달왕! {riderNickname}</Text>
                 </View>
                 <View style={styles.infoBox}>
                     {modify ? (
@@ -113,46 +102,56 @@ const MyPage = ({ navigation }) => {
                                 <Text style={styles.label}>닉네임</Text>
                                 <TextInput
                                     style={styles.input}
-                                    value={customerNickname}
-                                    onChangeText={setCustomerNickname}
-                                    textAlign="right" // Align text to the right
+                                    value={riderNickname}
+                                    onChangeText={setRiderNickname}
+                                    textAlign="right"
                                 />
                             </View>
                             <View style={styles.separator} />
                             <View style={styles.infoRow}>
-                                <Text style={styles.label}>주소</Text>
+                                <Text style={styles.label}>계좌번호</Text>
                                 <TextInput
                                     style={styles.input}
-                                    value={customerAddress}
-                                    onChangeText={setCustomerAddress}
-                                    textAlign="right" // Align text to the right
+                                    value={riderAccount}
+                                    onChangeText={setRiderAccount}
+                                    textAlign="right"
                                 />
                             </View>
-                            <TouchableOpacity onPress={handleAddressChange} style={styles.addressButton}>
-                                <SpeechBubble
-                                    content="주소 확인"
-                                    backgroundColor="#94D35C"
-                                    textColor="#634F4F"
-                                    height={50}
-                                    width="100%"
+                            <View style={styles.infoRow}>
+                                <Text style={styles.label}>배달수단</Text>
+                                <RNPickerSelect
+                                    onValueChange={(value) => setRiderTransportation(value)}
+                                    items={[
+                                        { label: 'Walk', value: 'WALK' },
+                                        { label: 'Bicycle', value: 'BICYCLE' },
+                                        { label: 'Motorbike', value: 'MOTORBIKE' },
+                                        { label: 'Car', value: 'CAR' },
+                                    ]}
+                                    style={pickerStyles}
+                                    placeholder={{ label: '배달 수단 선택...', value: null }}
+                                    value={riderTransportation}
                                 />
-                            </TouchableOpacity>
+                            </View>
                         </>
                     ) : (
                         <>
                             <View style={styles.infoRow}>
                                 <Text style={styles.label}>이메일</Text>
-                                <Text style={styles.value}>{customerEmail}</Text>
+                                <Text style={styles.value}>{riderEmail}</Text>
                             </View>
                             <View style={styles.separator} />
                             <View style={styles.infoRow}>
                                 <Text style={styles.label}>전화번호</Text>
-                                <Text style={styles.value}>{customerPhone}</Text>
+                                <Text style={styles.value}>{riderPhone}</Text>
                             </View>
                             <View style={styles.separator} />
                             <View style={styles.infoRow}>
-                                <Text style={styles.label}>주소</Text>
-                                <Text style={styles.value}>{customerAddress}</Text>
+                                <Text style={styles.label}>계좌번호</Text>
+                                <Text style={styles.value}>{riderAccount}</Text>
+                            </View>
+                            <View style={styles.infoRow}>
+                                <Text style={styles.label}>배달수단</Text>
+                                <Text style={styles.value}>{riderTransportation}</Text>
                             </View>
                         </>
                     )}
@@ -168,38 +167,16 @@ const MyPage = ({ navigation }) => {
                         />
                     </TouchableOpacity>
                 </View>
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity>
-                        <SpeechBubble
-                            content="찜한 가게 보기"
-                            backgroundColor="#ffffff"
-                            textColor="black"
-                            height={50}
-                            width="100%"
-                        />
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity>
-                        <SpeechBubble
-                            content="쿠폰 보기"
-                            backgroundColor="#ffffff"
-                            textColor="black"
-                            height={50}
-                            width="100%"
-                        />
-                    </TouchableOpacity>
-                </View>
-                <View style={styles.buttonContainer}>
-                    <TouchableOpacity>
-                        <SpeechBubble
-                            content="내가 쓴 리뷰 보기"
-                            backgroundColor="#ffffff"
-                            textColor="black"
-                            height={50}
-                            width="100%"
-                        />
-                    </TouchableOpacity>
+                {modify && (
+                    <View style={styles.buttonContainer}>
+                        <Button title="활동 지역 추가" onPress={handleAddActivityArea} />
+                    </View>
+                )}
+                <View style={styles.activityAreaContainer}>
+                    <Text style={styles.label}>활동 지역</Text>
+                    {activityAreas.map((area, index) => (
+                        <Text key={index} style={styles.value}>{area}</Text>
+                    ))}
                 </View>
                 <View style={styles.buttonContainer}>
                     <TouchableOpacity>
@@ -224,6 +201,13 @@ const styles = StyleSheet.create({
         padding: 20,
         backgroundColor: '#f5f5f5',
     },
+    profileContainer: {
+        flex: 1,
+        alignItems: 'center',
+        width: '100%',
+        paddingHorizontal: 0,
+        paddingTop: 80,
+    },
     profile: {
         alignItems: 'center',
         marginBottom: 20,
@@ -231,7 +215,7 @@ const styles = StyleSheet.create({
     profileImage: {
         width: 80,
         height: 80,
-        borderRadius: 40, // Half of the width/height
+        borderRadius: 40,
         marginBottom: 10,
     },
     greeting: {
@@ -255,7 +239,7 @@ const styles = StyleSheet.create({
     label: {
         fontSize: 16,
         fontWeight: 'bold',
-        paddingRight: 10
+        paddingRight: 10,
     },
     value: {
         fontSize: 16,
@@ -273,8 +257,54 @@ const styles = StyleSheet.create({
         marginVertical: 5,
     },
     buttonContainer: {
-        width: '100%', // Ensure the container takes full width
+        width: '100%',
         marginBottom: 10,
+    },
+    menu: {
+        position: "absolute",
+        top: 40,
+        left: 20,
+        borderRadius: 50,
+        width: 50,
+        height: 50,
+        backgroundColor: "#94D35C",
+        justifyContent: "center",
+        alignItems: "center",
+        zIndex: 1,
+    },
+    menuText: {
+        fontSize: 30,
+        color: "#ffffff",
+    },
+    activityAreaContainer: {
+        width: '100%',
+        padding: 15,
+        backgroundColor: 'white',
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#555555',
+        marginBottom: 20,
+    },
+});
+
+const pickerStyles = StyleSheet.create({
+    inputIOS: {
+        borderColor: '#634F4F',
+        borderWidth: 1,
+        borderRadius: 25,
+        paddingHorizontal: 16,
+        fontSize: 16,
+        backgroundColor: '#FFFFFF',
+        marginBottom: 20,
+    },
+    inputAndroid: {
+        borderColor: '#634F4F',
+        borderWidth: 1,
+        borderRadius: 25,
+        paddingHorizontal: 16,
+        fontSize: 16,
+        backgroundColor: '#FFFFFF',
+        marginBottom: 20,
     },
 });
 
