@@ -1,11 +1,10 @@
-import { Clipboard, Image, Linking, Platform, Pressable, StyleSheet, Text, ToastAndroid, TouchableOpacity, View } from 'react-native';
+import { Clipboard, Image, Linking, Platform, StyleSheet, Text, ToastAndroid, TouchableOpacity, View } from 'react-native';
 import WebView from 'react-native-webview';
 import { useEffect, useState } from 'react';
 import * as Location from 'expo-location';
 import { changeActivationState } from './api/RiderApi';
 import { deleteDeliveryRequest, getDeliveryRequests } from './api/DeliveryRequestApi';
-import SendIntentAndroid from 'react-native-send-intent';
-import { YellowBox } from 'react-native-web';
+
 
 
 export default function App() {
@@ -19,7 +18,6 @@ export default function App() {
   const [mapHtml, setMapHtml] = useState("");
   const [orderedItem, setOrderedItem] = useState(null);
   const [activationButtonDisabled, setActivationButtonDisabled] = useState(false);
-  const [naviHtml, setNaviHtml] = useState(null);
   const [deliveryButtonText, setDeliveryButtonText] = useState("이동하시겠습니까?");
 
 
@@ -59,10 +57,6 @@ export default function App() {
       return false;
     }
   };
-
-
-
-
 
   const setCurrentLocation = async () => {
     const { status } = await Location.requestForegroundPermissionsAsync();
@@ -184,8 +178,7 @@ export default function App() {
       </head>
       <body>
         <a id="start-navigation" href="javascript:startNavigation()">
-          <img src="https://developers.kakao.com/assets/img/about/buttons/navi/kakaonavi_btn_medium.png"
-            alt="길 안내하기 버튼" />
+          길 안내하기 버튼 
         </a>
         <script>
           function startNavigation() {
@@ -258,7 +251,6 @@ export default function App() {
       // 주문 상태 -> 배달 완료로 업데이트 필요 (주문 도메인에서)
       
 
-
       // 다시 요청 목록 띄워줌
       const res = await getDeliveryRequests(46, {latitude: location.coords.latitude, longitude: location.coords.longitude});
       setDeliveryRequests(res);
@@ -278,7 +270,6 @@ export default function App() {
           source={{ html: mapHtml }}
           onMessage={handleMessage}
         />
-      
       <TouchableOpacity style={styles.menu}>
         <Text style={styles.menuText}>☰</Text>
       </TouchableOpacity >
@@ -301,18 +292,22 @@ export default function App() {
         <TouchableOpacity style={styles.orderedItemButton} onPress={updateDeliveryState}>
           <Text style={styles.orderedItemButtonText}>{deliveryButtonText}</Text>
         </TouchableOpacity>
-        {/* <WebView source={{ html: turnOnNavi()}} originWhitelist={['*']} onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}/> */}
       </View>
       }
       <TouchableOpacity style={styles.activationButton} onPress={clickOnActivationButton} disabled={activationButtonDisabled}>
         <Text style={styles.activationText}>{activationText}</Text>
       </TouchableOpacity>
       <Text style={styles.activationState}>{activationState}</Text>
+      {/* <WebView style={styles.kakaoNavi} source={{ html: turnOnNavi()}} originWhitelist={['*']} onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}/> */}
     </View>
   );
 };
-
+// 
 const styles = StyleSheet.create({
+  // kakaoNavi: {
+  //   height: 10,
+  // },
+
   copyContainer: {
     flexDirection: "row",
     columnGap: 20,
@@ -323,7 +318,6 @@ const styles = StyleSheet.create({
     // marginTop: 10,
     borderRadius: 50,
     padding: 10,
-    backgroundColor: "#94D35C",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "white"
@@ -335,7 +329,7 @@ const styles = StyleSheet.create({
   },
 
   webviewContainer: {
-    flex: 1
+    flex: 1,
   },
 
   
@@ -399,8 +393,6 @@ const styles = StyleSheet.create({
     left: "5%",
     borderRadius: 20,
     width: "89%",
-    // height: 90,
-    backgroundColor: "#94D35C",
     padding: 15,
     backgroundColor: "rgba(73, 195, 247, 0.8)",
 
@@ -421,7 +413,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 50,
     padding: 10,
-    backgroundColor: "#94D35C",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "white"
