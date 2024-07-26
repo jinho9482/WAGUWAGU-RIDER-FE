@@ -9,6 +9,11 @@ export const updateInfo = async (data) => {
   return res;
 };
 export const saveActivityArea = async (data) => {
-  const res = await api("/riders?activityArea="+data, "post");
+  const res = await api("/riders?activityArea="+data.riderActivityArea, "post");
+  return res;
+};
+
+export const deleteActivityArea = async (data) => {
+  const res = await api("/riders", "delete",data);
   return res;
 };
