@@ -2,8 +2,9 @@ import { Clipboard, Image, Linking, Platform, StyleSheet, Text, ToastAndroid, To
 import WebView from 'react-native-webview';
 import { useEffect, useState } from 'react';
 import * as Location from 'expo-location';
-import { changeActivationState } from './api/RiderApi';
-import { deleteDeliveryRequest, getDeliveryRequests } from './api/DeliveryRequestApi';
+import { changeActivationState } from './api/Rider';
+import { deleteDeliveryRequest, getDeliveryRequests } from './api/DeliveryRequest';
+import { updateOrderState } from './api/Order';
 
 
 
@@ -233,24 +234,26 @@ export default function App() {
   };
 
   const updateDeliveryState = async () => {
-    if (deliveryButtonText === "이동하시겠습니까?") setDeliveryButtonText("픽업 완료 & 배달 시작");
+    if (deliveryButtonText === "이동하시겠습니까?") {
+      await updateOrderState(orderedItem.orderId, {state : "DELIVERY_REQUEST"});
+      setDeliveryButtonText("픽업 완료 & 배달 시작");
+    }
     else if (deliveryButtonText === "픽업 완료 & 배달 시작") {
-      setDeliveryButtonText("배달 완료"); 
       // 주문 상태 -> 배달 시작으로 업데이트 필요 (주문 도메인에서)
-      
+      await updateOrderState(orderedItem.orderId, {state : "DELIVERING"});
+      setDeliveryButtonText("배달 완료"); 
     } 
     else {
-      // 배달 완료 건은 redis에서 삭제 및 postgres에 저장
-      console.log(orderedItem.deliveryRequestId);
-      await deleteDeliveryRequest(orderedItem.deliveryRequestId);
+      // 주문 상태 -> 배달 완료로 업데이트 필요 (주문 도메인에서)
+      await updateOrderState(orderedItem.orderId, {state : "DELIVERED"});
       // 주문 수락 건 창 끄고 기본값으로 세팅
       setOrderedItem(null);
       setDeliveryButtonText("이동하시겠습니까?");
+      // 배달 완료 건은 redis에서 삭제 및 postgres에 저장
+      console.log(orderedItem.deliveryRequestId);
+      await deleteDeliveryRequest(orderedItem.deliveryRequestId);
       // 비활성화 버튼 다시 활성화
       setActivationButtonDisabled(false);
-      // 주문 상태 -> 배달 완료로 업데이트 필요 (주문 도메인에서)
-      
-
       // 다시 요청 목록 띄워줌
       const res = await getDeliveryRequests(46, {latitude: location.coords.latitude, longitude: location.coords.longitude});
       setDeliveryRequests(res);
