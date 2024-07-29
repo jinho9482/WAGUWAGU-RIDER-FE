@@ -7,7 +7,7 @@ import RNPickerSelect from 'react-native-picker-select';
 
 const SignupScreen = ({ navigation }) => {
     const [rider, setRider] = useState(null);
-    const [riderActivityAreas, setRiderActivityAreas] = useState([]);
+    const [riderActivityAreas, setRiderActivityAreas] = useState(['']);
 
     useEffect(() => {
         const fetchRiderInfo = async () => {
@@ -17,7 +17,6 @@ const SignupScreen = ({ navigation }) => {
                     const { rider, activityAreas } = res.data;
 
                     if (!rider.riderAccount) {
-                        // If riderAccount is null, set rider details for signing up
                         setRider({
                             riderId: rider.riderId,
                             riderEmail: rider.riderEmail,
@@ -28,9 +27,14 @@ const SignupScreen = ({ navigation }) => {
                             riderActivate: rider.riderActivate,
                             riderIsDeleted: rider.riderIsDeleted
                         });
-                        setRiderActivityAreas(activityAreas.map(area => area.riderActivityArea));
+
+                        const initialAreas = [];
+                        for (let i = 0; i < activityAreas.length; i++) {
+                            initialAreas.push(activityAreas[i].riderActivityArea);
+                        }
+
+                        setRiderActivityAreas([...initialAreas, ...Array(3 - initialAreas.length).fill('')]);
                     } else {
-                        // If riderAccount is not null, navigate to the main screen
                         navigation.replace('Main');
                         await AsyncStorage.setItem('riderId', JSON.stringify(rider.riderId));
                         await AsyncStorage.setItem('riderNickname', rider.riderNickname);
@@ -50,30 +54,48 @@ const SignupScreen = ({ navigation }) => {
 
     const saveArea = async () => {
         try {
-            const nonEmptyAreas = riderActivityAreas.filter(area => area.trim() !== '');
-
-            if (nonEmptyAreas.length === 0) {
-                console.log("저장할 활동 지역이 없습니다.");
-                return;
-            }
-
-            const dataToSave = nonEmptyAreas.map(area => ({
-                riderId: rider.riderId,
-                riderActivityArea: area
-            }));
-
-            for (const data of dataToSave) {
-                const res = await saveActivityArea(data);
-                if (res.status !== 200) {
-                    Alert.alert('배달 지역 저장 실패', '배달 지역 저장에 실패했습니다. 다시 시도해주세요.');
-                    return;
+            // 빈 값 제거
+            const nonEmptyAreas = [];
+            for (let i = 0; i < riderActivityAreas.length; i++) {
+                const area = riderActivityAreas[i].trim();
+                if (area !== '') {
+                    nonEmptyAreas.push(area);
                 }
             }
 
-            console.log("모든 활동 지역이 성공적으로 저장되었습니다.");
+            if (nonEmptyAreas.length === 0) {
+                console.log("저장할 활동 지역이 없습니다.");
+                return true; // 성공적으로 저장할 활동 지역이 없음
+            }
+
+            let allSaved = true;
+
+            // 모든 비어있지 않은 활동 지역 저장
+            for (let i = 0; i < nonEmptyAreas.length; i++) {
+                const area = nonEmptyAreas[i];
+                const data = {
+                    riderId: String(rider.riderId),
+                    riderActivityArea: String(area)
+                };
+
+                const res = await saveActivityArea(data);
+
+                if (res.status !== 200) {
+                    Alert.alert('배달 지역 저장 실패', '배달 지역 저장에 실패했습니다. 다시 시도해주세요.');
+                    allSaved = false; // 저장 실패
+                    break;
+                }
+            }
+
+            if (allSaved) {
+                console.log("모든 활동 지역이 성공적으로 저장되었습니다.");
+            }
+
+            return allSaved;
         } catch (error) {
             console.log("배달 지역 저장 중 에러", error);
             Alert.alert('Error', '배달 지역 저장 중 에러가 발생했습니다.');
+            return false; // 저장 중 에러 발생
         }
     };
 
@@ -85,8 +107,8 @@ const SignupScreen = ({ navigation }) => {
             Alert.alert('유효하지 않은 이메일', '올바른 이메일 형식이 아닙니다!');
             return;
         }
-        if (!rider.riderEmail || !rider.riderNickname || !rider.riderPhone || riderActivityAreas.some(area => !area.trim())) {
-            Alert.alert('빈 칸 오류', '빈 칸 없이 모두 입력해주세요!');
+        if (!rider.riderEmail || !rider.riderNickname || !rider.riderPhone || riderActivityAreas.every(area => !area.trim())) {
+            Alert.alert('빈 칸 오류', '활동 지역 필드 중 하나 이상은 반드시 입력해야 합니다!');
             return;
         }
         if (!phonePattern.test(rider.riderPhone)) {
@@ -95,7 +117,8 @@ const SignupScreen = ({ navigation }) => {
         }
 
         try {
-            await saveArea();
+            const areaSaved = await saveArea();
+            if (!areaSaved) return; // 활동 지역 저장 실패 시 종료
 
             const res = await updateInfo({
                 riderId: rider.riderId,
@@ -119,6 +142,12 @@ const SignupScreen = ({ navigation }) => {
         }
     };
 
+    const handleActivityAreaChange = (text, index) => {
+        const newAreas = [...riderActivityAreas];
+        newAreas[index] = text;
+        setRiderActivityAreas(newAreas);
+    };
+
     const handleAddArea = () => {
         if (riderActivityAreas.length < 3) {
             setRiderActivityAreas([...riderActivityAreas, '']);
@@ -127,28 +156,27 @@ const SignupScreen = ({ navigation }) => {
 
     const handleRemoveArea = (index) => {
         if (riderActivityAreas.length > 1) {
-            setRiderActivityAreas(riderActivityAreas.filter((_, i) => i !== index));
+            const newAreas = riderActivityAreas.filter((_, i) => i !== index);
+            setRiderActivityAreas(newAreas);
         }
     };
 
-    const handleActivityAreaChange = (text, index) => {
-        const newAreas = [...riderActivityAreas];
-        newAreas[index] = text;
-        setRiderActivityAreas(newAreas);
-    };
+    if (!rider) {
+        return <View><Text>Loading...</Text></View>;
+    }
 
     return (
-        <ScrollView>
-            <View>
+        <ScrollView contentContainerStyle={styles.scrollContainer}>
+            <View style={styles.contentContainer}>
                 <View style={styles.container}>
                     <Image
-                        source={require('../assets/배달기사.png')} // 첫 번째 이미지 경로
+                        source={require('../assets/배달기사.png')}
                         style={styles.iconImage}
                     />
                     <Image
-                        source={require('../assets/waguwagu.png')} // 두 번째 이미지 경로
+                        source={require('../assets/waguwagu.png')}
                         style={styles.logoImage}
-                        resizeMode="contain" // 이미지가 버튼에 맞게 조정되도록 설정
+                        resizeMode="contain"
                     />
                 </View>
                 <View style={styles.infoBox}>
@@ -156,7 +184,7 @@ const SignupScreen = ({ navigation }) => {
                     <TextInput
                         style={[styles.input, rider && styles.disabledInput]}
                         placeholder="Email"
-                        value={rider?.riderEmail || ''}
+                        value={rider.riderEmail || ''}
                         onChangeText={(text) => setRider({ ...rider, riderEmail: text })}
                         editable={false}
                     />
@@ -164,14 +192,14 @@ const SignupScreen = ({ navigation }) => {
                     <TextInput
                         style={styles.input}
                         placeholder="Nickname"
-                        value={rider?.riderNickname || ''}
+                        value={rider.riderNickname || ''}
                         onChangeText={(text) => setRider({ ...rider, riderNickname: text })}
                     />
                     <Text style={styles.infoText}>전화번호</Text>
                     <TextInput
                         style={styles.input}
                         placeholder="Phone"
-                        value={rider?.riderPhone || ''}
+                        value={rider.riderPhone || ''}
                         onChangeText={(text) => setRider({ ...rider, riderPhone: text })}
                         keyboardType="numeric"
                     />
@@ -179,13 +207,13 @@ const SignupScreen = ({ navigation }) => {
                     {riderActivityAreas.map((area, index) => (
                         <View key={index} style={styles.activityContainer}>
                             <TextInput
-                                style={styles.activityInput}
+                                style={[styles.activityInput, { flex: 6 }]} // 6:2:2 비율을 위해 flex 조정
                                 placeholder={`Activity Area ${index + 1}`}
-                                value={area}
+                                value={area || ''} // Ensure the value is always a string
                                 onChangeText={(text) => handleActivityAreaChange(text, index)}
                             />
                             {riderActivityAreas.length > 1 && (
-                                <TouchableOpacity onPress={() => handleRemoveArea(index)} style={styles.activityButton}>
+                                <TouchableOpacity onPress={() => handleRemoveArea(index)} style={[styles.activityButton, { flex: 2 }]}>
                                     <SpeechBubble
                                         content="-"
                                         backgroundColor="#ffffff"
@@ -196,7 +224,7 @@ const SignupScreen = ({ navigation }) => {
                                 </TouchableOpacity>
                             )}
                             {riderActivityAreas.length < 3 && (
-                                <TouchableOpacity onPress={handleAddArea} style={styles.activityButton}>
+                                <TouchableOpacity onPress={handleAddArea} style={[styles.activityButton, { flex: 2 }]}>
                                     <SpeechBubble
                                         content="+"
                                         backgroundColor="#ffffff"
@@ -212,7 +240,7 @@ const SignupScreen = ({ navigation }) => {
                     <TextInput
                         style={styles.input}
                         placeholder="Account"
-                        value={rider?.riderAccount || ''}
+                        value={rider.riderAccount || ''}
                         onChangeText={(text) => setRider({ ...rider, riderAccount: text })}
                     />
                     <Text style={styles.infoText}>배달수단</Text>
@@ -226,7 +254,7 @@ const SignupScreen = ({ navigation }) => {
                         ]}
                         style={pickerStyles}
                         placeholder={{ label: '배달 수단 선택...', value: null }}
-                        value={rider?.riderTransportation || null}
+                        value={rider.riderTransportation || null}
                     />
                     <TouchableOpacity onPress={handleSignup}>
                         <SpeechBubble
@@ -273,7 +301,6 @@ const styles = StyleSheet.create({
         marginBottom: 20,
     },
     activityInput: {
-        flex: 6, // 주소 입력 필드가 6 비율을 차지
         height: 40,
         borderColor: '#634F4F',
         borderWidth: 1,
@@ -281,10 +308,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         fontSize: 16,
         backgroundColor: '#FFFFFF',
-    },
-    activityButton: {
-        flex: 2, // 주소 확인 버튼이 2 비율을 차지
-        marginLeft: 10,
     },
     input: {
         width: '100%',
@@ -299,6 +322,16 @@ const styles = StyleSheet.create({
     },
     disabledInput: {
         backgroundColor: '#e0e0e0',
+    },
+    scrollContainer: {
+        flexGrow: 1,
+    },
+    contentContainer: {
+        flexGrow: 1,
+        justifyContent: 'center',
+    },
+    activityButton: {
+        marginLeft: 10,
     },
 });
 
