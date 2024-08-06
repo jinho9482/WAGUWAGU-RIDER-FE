@@ -1,96 +1,153 @@
-import { Clipboard, Image, Linking, Platform, StyleSheet, Text, ToastAndroid, TouchableOpacity, View } from 'react-native';
-import WebView from 'react-native-webview';
-import { useEffect, useState } from 'react';
-import * as Location from 'expo-location';
-import { changeActivationState } from '../api/RiderApi';
-import { deleteDeliveryRequest, getDeliveryRequests } from '../api/DeliveryRequestApi';
-
-
+import {
+  Alert,
+  Image,
+  Linking,
+  Platform,
+  StatusBar,
+  StyleSheet,
+  Text,
+  ToastAndroid,
+  TouchableOpacity,
+  View,
+} from "react-native";
+// import Clipboard from '@react-native-clipboard/clipboard';
+import WebView from "react-native-webview";
+import { useEffect, useState } from "react";
+import * as Location from "expo-location";
+import { changeActivationState } from "../api/Rider";
+import {
+  moveDeliveryRequestToPostgres,
+  getDeliveryRequests,
+} from "../api/DeliveryRequest";
+import { updateOrderStateToRedis } from "../api/Order";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Clipboard from "expo-clipboard";
+import { deleteRiderLocation, saveRiderLocation } from "../api/RiderLocation";
 
 export default function HomeScreen({ navigation }) {
+  const localImage = Image.resolveAssetSource(
+    require("../assets/my-location-marker.png")
+  ).uri;
+  const [location, setLocation] = useState({
+    coords: { latitude: 37.4864987317089, longitude: 127.020663860591 },
+  }); // 학원 주소를 기본 값으로
+  const [errorMsg, setErrorMsg] = useState(null);
+  const [activationText, setActivationText] = useState("활성화");
+  const [activationState, setActivationState] =
+    useState("현재 오프라인 상태입니다.");
+  const [deliveryRequests, setDeliveryRequests] = useState(null);
+  const [mapHtml, setMapHtml] = useState("");
+  const [orderedItem, setOrderedItem] = useState(null);
+  const [activationButtonDisabled, setActivationButtonDisabled] =
+    useState(false);
+  const [deliveryButtonText, setDeliveryButtonText] =
+    useState("픽업 완료 & 배달 시작");
 
-    const localImage = Image.resolveAssetSource(require('../assets/my-location-marker.png')).uri;
-    const [location, setLocation] = useState(null); // 내 주소를 기본 값으로
-    const [errorMsg, setErrorMsg] = useState(null);
-    const [activationText, setActivationText] = useState("활성화");
-    const [activationState, setActivationState] = useState("현재 오프라인 상태입니다.");
-    const [deliveryRequests, setDeliveryRequests] = useState(null);
-    const [mapHtml, setMapHtml] = useState("");
-    const [orderedItem, setOrderedItem] = useState(null);
-    const [activationButtonDisabled, setActivationButtonDisabled] = useState(false);
-    const [deliveryButtonText, setDeliveryButtonText] = useState("이동하시겠습니까?");
+  const [intervalId, setIntervalId] = useState(null);
 
+  // console.log(location);
+  const onShouldStartLoadWithRequest = (event) => {
+    const { url } = event;
 
-    const onShouldStartLoadWithRequest = (event) => {
-        const { url } = event;
+    if (Platform.OS === "android" && url.includes("intent")) {
+      console.log("Android intent detected:", url);
 
-        if (Platform.OS === 'android' && url.includes('intent')) {
-            console.log("Android intent detected:", url);
+      const fallbackURL = url
+        .split("S.browser_fallback_url=")[1]
+        ?.split(";")[0];
+      console.log("Fallback URL:", fallbackURL);
 
-            const fallbackURL = url.split('S.browser_fallback_url=')[1]?.split(';')[0];
-            console.log("Fallback URL:", fallbackURL);
-
-            Linking.canOpenURL((url))
-                .then((supported) => {
-                    if (supported) {
-                        console.log("Opening intent URL:", url);
-                        return Linking.openURL((url));
-                    } else if (fallbackURL) {
-                        console.log("Intent not supported, opening fallback URL:", fallbackURL);
-                        return Linking.openURL(decodeURIComponent(fallbackURL));
-                    } else {
-                        ToastAndroid.show('앱 실행에 실패했습니다.', ToastAndroid.SHORT);
-                        console.log("No fallback URL available.");
-                    }
-                })
-                .catch((err) => {
-                    console.error("Error opening URL:", err);
-                });
-
-            return false;
-        } else {
-            Linking.openURL(url).catch(err => {
-                alert('앱 실행에 실패했습니다. 설치가 되어있지 않은 경우 설치하기 버튼을 눌러주세요.');
-                console.error("Error opening URL:", err);
-            });
-
-            return false;
-        }
-    };
-
-    const setCurrentLocation = async () => {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        // console.log(status);
-        if (status !== 'granted') {
-            setErrorMsg('Permission to access location was denied');
-            return;
-        }
-
-        const currentLocation = await Location.getCurrentPositionAsync({
-            accuracy: Location.Accuracy.High
+      Linking.canOpenURL(url)
+        .then((supported) => {
+          if (supported) {
+            console.log("Opening intent URL:", url);
+            return Linking.openURL(url);
+          } else if (fallbackURL) {
+            console.log(
+              "Intent not supported, opening fallback URL:",
+              fallbackURL
+            );
+            return Linking.openURL(decodeURIComponent(fallbackURL));
+          } else {
+            ToastAndroid.show("앱 실행에 실패했습니다.", ToastAndroid.SHORT);
+            console.log("No fallback URL available.");
+          }
+        })
+        .catch((err) => {
+          console.error("Error opening URL:", err);
         });
+
+      return false;
+    } else {
+      Linking.openURL(url).catch((err) => {
+        alert(
+          "앱 실행에 실패했습니다. 설치가 되어있지 않은 경우 설치하기 버튼을 눌러주세요."
+        );
+        console.error("Error opening URL:", err);
+      });
+
+      return false;
+    }
+  };
+
+  const setCurrentLocation = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    // console.log(status);
+    if (status !== "granted") {
+      setErrorMsg("Permission to access location was denied");
+      return;
+    }
+
+    const currentLocation = await getCurrentLocation();
+    setLocation(currentLocation);
+  };
+
+  const getCurrentLocation = async () => {
+    const currentLocation = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.High,
+    });
+    return currentLocation;
+  };
+
+  const clickOnActivationButton = async () => {
+    const riderId = await AsyncStorage.getItem("riderId");
+    if (riderId) {
+      if (activationText === "활성화") {
+        setActivationText("비활성화");
+        setActivationState("현재 온라인 상태입니다.");
+        await changeActivationState(riderId, "on");
+        const currentLocation = await getCurrentLocation();
+        const res = await getDeliveryRequests(riderId, {
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+        });
+        setDeliveryRequests(res);
         setLocation(currentLocation);
-    };
+        let refreshIntervalId = setInterval(
+          () =>
+            saveCurrentRiderLocation(
+              riderId,
+              "4f1b2c71-a284-42f2-bcef-49b162a887f6"
+            ),
+          1000
+        );
+        setIntervalId(refreshIntervalId);
+        console.log(refreshIntervalId);
+      } else {
+        clearInterval(intervalId);
+        setIntervalId(null);
+        setActivationText("활성화");
+        setActivationState("현재 오프라인 상태입니다.");
+        await changeActivationState(riderId, "off");
+        setDeliveryRequests(null);
+      }
+    }
+  };
 
-    const clickOnActivationButton = async () => {
-        if (activationText === "활성화") {
-            setActivationText("비활성화");
-            setActivationState("현재 온라인 상태입니다.");
-            await changeActivationState(46, "on");
-            const res = await getDeliveryRequests(46, {latitude: location.coords.latitude, longitude: location.coords.longitude});
-            setDeliveryRequests(res);
-        } else {
-            setActivationText("활성화")
-            setActivationState("현재 오프라인 상태입니다.");
-            await changeActivationState(46, "off");
-            setDeliveryRequests(null);
-        };
-    };
-
-    const generateMapHtml = () => {
-        console.log(location);
-        if (location) {
-            return `
+  const generateMapHtml = () => {
+    if (location) {
+      // console.log(location, "mapHtml 렌더링");
+      return `
       <!DOCTYPE html>
       <html>
       <head>
@@ -104,14 +161,29 @@ export default function HomeScreen({ navigation }) {
           
           const KakaoMap = () => {
             const mapContainer = document.getElementById('map');
-            const locPosition = new kakao.maps.LatLng(${location.coords.latitude}, ${location.coords.longitude});  
+            const locPosition = new kakao.maps.LatLng(${
+              location.coords.latitude
+            }, ${location.coords.longitude});  
             const mapOption = {
               center: locPosition,
               level: 6,
             };
+            
             const map = new kakao.maps.Map(mapContainer, mapOption);
             
-            if (${JSON.stringify(deliveryRequests)} && ${JSON.stringify(deliveryRequests)}.length > 0) {
+            // if (${activationText} === "비활성화") {
+            //     kakao.maps.event.addListener(map, 'dragend', function() {
+            //         window.ReactNativeWebView.postMessage("배달 목록 갱신");    
+            //     });
+            // }
+            
+            // 지도를 드래그하고 놓았을 때 (이동), 이동한 위치를 중심으로 deliveryRequests를 갱신하고 새로 렌더링 한다.
+            // debug : deliveryRequest가 없다면 영원히 드래그해도 새 것을 가져오지 않음
+            
+            
+            if (${JSON.stringify(deliveryRequests)} && ${JSON.stringify(
+        deliveryRequests
+      )}.length > 0) {
               for (const req of ${JSON.stringify(deliveryRequests)}) {
                 const iwContent = '<div style="padding:5px; width:100%";>' + req.storeName + '<br>' + req.deliveryPay + '원<br>' + req.distanceFromStoreToRider + 'km</div>' // 인포윈도우에 표출될 내용으로 HTML 문자열이나 document element가 가능합니다
                 const markerPosition = new kakao.maps.LatLng(req.storeLatitude, req.storeLongitude); //인포윈도우 표시 위치입니다
@@ -128,12 +200,12 @@ export default function HomeScreen({ navigation }) {
                 });
                 infowindow.open(map, marker);
                 
+                // 마커를 눌렀을 때 배달 신청 확인 창 뜨기
                 kakao.maps.event.addListener(marker, 'click', function() {
-                  // 마커 위에 인포윈도우를 표시합니다
-                  if (confirm("배달 신청하시겠습니까?")) {
-                    window.ReactNativeWebView.postMessage(JSON.stringify(req));
-                  };
-                });
+                    if (confirm("배달 신청하시겠습니까?")) {
+                      window.ReactNativeWebView.postMessage(JSON.stringify(req));
+                    };
+                });                
               };
             };
             const imageSrc = '${localImage}', // 마커이미지의 주소입니다    
@@ -142,7 +214,9 @@ export default function HomeScreen({ navigation }) {
                 
             // 마커의 이미지정보를 가지고 있는 마커이미지를 생성합니다
             const markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption),
-                markerPosition = new kakao.maps.LatLng(${location.coords.latitude}, ${location.coords.longitude}); // 마커가 표시될 위치입니다
+                markerPosition = new kakao.maps.LatLng(${
+                  location.coords.latitude
+                }, ${location.coords.longitude}); // 마커가 표시될 위치입니다
             // 마커를 생성합니다
             const marker = new kakao.maps.Marker({
                 position: markerPosition, 
@@ -158,294 +232,394 @@ export default function HomeScreen({ navigation }) {
       </body>
       </html>
       `;
-        };
-    };
-
-    const turnOnNavi = () => {
-        // console.log("내비게이션 on");
-        return `
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <meta charset="utf-8" />
-        <title>Kakao JavaScript SDK</title>
-        <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4" crossorigin="anonymous">
-        </script>
-        <script>
-          Kakao.init('a6546188cab40bea0d30c30a1d2c578d'); // 사용하려는 앱의 JavaScript 키 입력
-          console.log(Kakao.isInitialized());
-        </script>
-      </head>
-      <body>
-        <a id="start-navigation" href="javascript:startNavigation()">
-          길 안내하기 버튼 
-        </a>
-        <script>
-          function startNavigation() {
-            Kakao.Navi.start({
-              name: '현대백화점 판교점',
-              x: 127.11205203011632,
-              y: 37.39279717586919,
-              coordType: 'wgs84',
-            });
-          }
-        </script>
-      </body>
-    </html>
-    `;
-    };
-
-
-    useEffect(() => {
-        (async () => {
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            // console.log(status);
-            if (status !== 'granted') {
-                setErrorMsg('Permission to access location was denied');
-                return;
-            }
-
-            const currentLocation = await Location.getCurrentPositionAsync({
-                accuracy: Location.Accuracy.High
-            });
-            // console.log(currentLocation);
-            setLocation(currentLocation);
-        })();
-    }, []);
-
-    useEffect(() => {
-        setMapHtml(generateMapHtml());
-        // console.log(mapHtml);
-    }, [location, deliveryRequests]);
-
-    // useEffect(() => {
-    //   setNaviHtml(turnOnNavi());
-    //   // console.log(mapHtml);
-    // }, [naviHtml]);
-
-
-    const handleMessage = (event) => {
-        console.log(event);
-        setActivationButtonDisabled(true);
-        setOrderedItem(JSON.parse(event.nativeEvent.data));
-        console.log(event.nativeEvent.data);
-        setDeliveryRequests(null);
-    };
-
-    const updateDeliveryState = async () => {
-        if (deliveryButtonText === "이동하시겠습니까?") setDeliveryButtonText("픽업 완료 & 배달 시작");
-        else if (deliveryButtonText === "픽업 완료 & 배달 시작") {
-            setDeliveryButtonText("배달 완료");
-            // 주문 상태 -> 배달 시작으로 업데이트 필요 (주문 도메인에서)
-
-        }
-        else {
-            // 배달 완료 건은 redis에서 삭제 및 postgres에 저장
-            console.log(orderedItem.deliveryRequestId);
-            await deleteDeliveryRequest(orderedItem.deliveryRequestId);
-            // 주문 수락 건 창 끄고 기본값으로 세팅
-            setOrderedItem(null);
-            setDeliveryButtonText("이동하시겠습니까?");
-            // 비활성화 버튼 다시 활성화
-            setActivationButtonDisabled(false);
-            // 주문 상태 -> 배달 완료로 업데이트 필요 (주문 도메인에서)
-
-
-            // 다시 요청 목록 띄워줌
-            const res = await getDeliveryRequests(46, {latitude: location.coords.latitude, longitude: location.coords.longitude});
-            setDeliveryRequests(res);
-        };
-    };
-
-    const copyToClipboard = () => {
-        Clipboard.setString(orderedItem.storeAddress);
-    };
-
-
-    return (
-        <View style={styles.webviewContainer}>
-            <WebView
-                style={styles.webview}
-                originWhitelist={['*']}
-                source={{ html: mapHtml }}
-                onMessage={handleMessage}
-            />
-            <TouchableOpacity style={styles.menu}
-                              onPress={() => navigation.openDrawer()}>
-                <Text style={styles.menuText}>☰</Text>
-            </TouchableOpacity >
-            <View style={styles.amount}>
-                <Text style={styles.amountText}>30000원</Text>
-            </View>
-            <TouchableOpacity style={styles.gps} onPress={setCurrentLocation}>
-                <Text style={styles.gpsText}>➤</Text>
-            </TouchableOpacity>
-            {orderedItem && activationText === "비활성화" &&
-                <View style={styles.orderedItem}>
-                    <View style={styles.copyContainer}>
-                        <Text style={styles.orderedItemTitle}>수락한 가게 정보를 안내 드려요</Text>
-                        <TouchableOpacity style={styles.copyButton} onPress={copyToClipboard}>
-                            <Text style={styles.copyText}>주소 복사</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <Text style={styles.orderedItemContents}>{orderedItem.storeName}</Text>
-                    <Text style={styles.orderedItemContents}>{orderedItem.storeAddress}</Text>
-                    <TouchableOpacity style={styles.orderedItemButton} onPress={updateDeliveryState}>
-                        <Text style={styles.orderedItemButtonText}>{deliveryButtonText}</Text>
-                    </TouchableOpacity>
-                </View>
-            }
-            <TouchableOpacity style={styles.activationButton} onPress={clickOnActivationButton} disabled={activationButtonDisabled}>
-                <Text style={styles.activationText}>{activationText}</Text>
-            </TouchableOpacity>
-            <Text style={styles.activationState}>{activationState}</Text>
-            {/* <WebView style={styles.kakaoNavi} source={{ html: turnOnNavi()}} originWhitelist={['*']} onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}/> */}
-        </View>
-    );
-};
-// 
-const styles = StyleSheet.create({
-    // kakaoNavi: {
-    //   height: 10,
-    // },
-
-    copyContainer: {
-        flexDirection: "row",
-        columnGap: 20,
-        justifyContent: 'space-between'
-    },
-
-    copyButton: {
-        // marginTop: 10,
-        borderRadius: 50,
-        padding: 10,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "white"
-    },
-
-    copyText: {
-        fontSize: 12,
-        fontWeight: '600'
-    },
-
-    webviewContainer: {
-        flex: 1,
-    },
-
-
-    webview: {
-        marginTop: 18,
-        flex: 1
-    },
-
-    menu: {
-        position: "absolute",
-        top: "5%",
-        left: "5%",
-        borderRadius: 50,
-        width: 50,
-        height: 50,
-        backgroundColor: "#94D35C",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    menuText: {
-        fontSize: 30
-    },
-
-    amount: {
-        alignSelf: "center",
-        position: "absolute",
-        top: "5%",
-        borderRadius: 20,
-        width: 120,
-        height: 50,
-        backgroundColor: "#94D35C",
-        justifyContent: "center",
-        alignItems: "center"
-    },
-
-    amountText: {
-        fontSize: 20
-    },
-
-    gps: {
-        position: "absolute",
-        top: "5%",
-        left: "80%",
-        borderRadius: 50,
-        width: 50,
-        height: 50,
-        backgroundColor: "#94D35C",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    gpsText: {
-        fontSize: 20
-    },
-
-
-    orderedItem: {
-        position: "absolute",
-        top: "15%",
-        left: "5%",
-        borderRadius: 20,
-        width: "89%",
-        padding: 15,
-        backgroundColor: "rgba(73, 195, 247, 0.8)",
-
-    },
-
-    orderedItemTitle: {
-        fontSize: 15,
-        marginBottom: 5,
-    },
-
-    orderedItemContents: {
-        fontSize: 20,
-        marginBottom: 5,
-        fontWeight: '600'
-    },
-
-    orderedItemButton: {
-        marginTop: 10,
-        borderRadius: 50,
-        padding: 10,
-        justifyContent: "center",
-        alignItems: "center",
-        backgroundColor: "white"
-    },
-
-    orderedItemButtonText: {
-        fontSize: 15,
-        fontWeight: '600'
-    },
-
-    activationButton: {
-        alignSelf: "center",
-        position: "absolute",
-        top: "78%",
-        borderRadius: 50,
-        width: 90,
-        height: 90,
-        backgroundColor: "#94D35C",
-        justifyContent: "center",
-        alignItems: "center",
-    },
-
-    activationText: {
-        fontSize: 20
-    },
-
-    activationState: {
-        marginTop: 0,
-        paddingTop: 10,
-        paddingBottom: 10,
-        backgroundColor: "#94D35C",
-        textAlign: "center",
-        fontSize: 20
     }
+  };
+
+  const handleMessage = async (event) => {
+    // console.log(event);
+    const nativeEventData = event.nativeEvent.data;
+    const riderId = await AsyncStorage.getItem("riderId");
+
+    // 화면 드래그 시, 배달 목록 갱신
+    if (nativeEventData === "배달 목록 갱신") {
+      console.log("배달 목록 갱신");
+      const newDeliveryRequests = await getDeliveryRequests(riderId, {
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      setDeliveryRequests(newDeliveryRequests);
+    }
+    // 마커 눌렀을 때, 주문 도메인에 배달 수락 요청
+    else {
+      const orderContents = JSON.parse(nativeEventData);
+      console.log(orderContents, "주문 건");
+      const res = await updateOrderStateToRedis(orderContents.orderId, {
+        status: "배달 수락",
+        riderId: riderId,
+      });
+      console.log(res, "배달 수락");
+      // 요청이 허가되면 후속 진행
+      if (res) {
+        // 요청 목록에서 제거 필요
+        // console.log("********************");
+        await moveDeliveryRequestToPostgres(
+          orderContents.deliveryRequestId,
+          riderId
+        );
+        console.log("Redis에서 삭제 완료, DB 저장 완료");
+        setActivationButtonDisabled(true);
+        setOrderedItem(orderContents);
+        setDeliveryRequests(null);
+      } else {
+        Alert.alert(
+          "요청 거절",
+          "이미 배정이 완료되었습니다. 다른 요청건을 확인해주세요"
+        );
+        // 현재 위치 가져오기
+        const currentLocation = await getCurrentLocation();
+        // 요청 목록 갱신 필요
+        const newDeliveryRequests = await getDeliveryRequests(riderId, {
+          latitude: currentLocation.coords.latitude,
+          longitude: currentLocation.coords.longitude,
+        });
+        setLocation(currentLocation);
+        setDeliveryRequests(newDeliveryRequests);
+      }
+    }
+  };
+
+  // const turnOnNavi = () => {
+  //     // console.log("내비게이션 on");
+  //     return `
+  // <!DOCTYPE html>
+  // <html>
+  //   <head>
+  //     <meta charset="utf-8" />
+  //     <title>Kakao JavaScript SDK</title>
+  //     <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js" integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4" crossorigin="anonymous">
+  //     </script>
+  //     <script>
+  //       Kakao.init('a6546188cab40bea0d30c30a1d2c578d'); // 사용하려는 앱의 JavaScript 키 입력
+  //       console.log(Kakao.isInitialized());
+  //     </script>
+  //   </head>
+  //   <body>
+  //     <a id="start-navigation" href="javascript:startNavigation()">
+  //       길 안내하기 버튼
+  //     </a>
+  //     <script>
+  //       function startNavigation() {
+  //         Kakao.Navi.start({
+  //           name: '현대백화점 판교점',
+  //           x: 127.11205203011632,
+  //           y: 37.39279717586919,
+  //           coordType: 'wgs84',
+  //         });
+  //       }
+  //     </script>
+  //   </body>
+  // </html>
+  // `;
+  // };
+
+  // useEffect(() => {
+  //   setNaviHtml(turnOnNavi());
+  //   // console.log(mapHtml);
+  // }, [naviHtml]);
+
+  const updateDeliveryState = async () => {
+    // console.log(orderedItem);
+    // 카카오 내비 달면 추가 예정
+    // if (deliveryButtonText === "이동하시겠습니까?") {
+    //   setDeliveryButtonText("픽업 완료 & 배달 시작");
+    // }
+
+    const riderId = await AsyncStorage.getItem("riderId");
+
+    if (deliveryButtonText === "픽업 완료 & 배달 시작") {
+      // console.log(orderedItem);
+      // 주문 상태 -> 배달 시작으로 업데이트 필요 (주문 도메인에서)
+      await updateOrderStateToRedis(orderedItem.orderId, {
+        status: "배달중",
+        riderId: riderId,
+      });
+      setDeliveryButtonText("배달 완료");
+
+      // 라이더 실시간 위치 매 1초마다 redis에 저장
+      const refreshIntervalId = setInterval(
+        () => saveCurrentRiderLocation(riderId, orderedItem.orderId),
+        1000
+      );
+      setIntervalId(refreshIntervalId);
+      console.log(refreshIntervalId);
+    } else if (deliveryButtonText === "배달 완료") {
+      // 라이더 실시간 위치 공유 종료
+      clearInterval(intervalId);
+      setIntervalId(null);
+
+      // 라이더 위치 redis 에서 삭제
+      await deleteRiderLocation(orderedItem.orderId);
+      // 주문 상태 -> 배달 완료로 업데이트 필요 (주문 도메인에서)
+      await updateOrderStateToRedis(orderedItem.orderId, {
+        status: "배달 완료",
+        riderId: riderId,
+      });
+      // 주문 수락 건 창 끄고 기본값으로 세팅
+      setOrderedItem(null);
+      setDeliveryButtonText("픽업 완료 & 배달 시작");
+      // 배달 완료 건은 redis에서 삭제 및 postgres에 저장
+      // console.log(orderedItem.deliveryRequestId);
+      // localstorage의 riderId key 값 확인하기
+      //   await moveDeliveryRequestToPostgres(orderedItem.deliveryRequestId, riderId);
+      //   console.log("DB 저장 완료");
+      // 비활성화 버튼 다시 활성화
+      setActivationText("활성화");
+      setActivationButtonDisabled(false);
+      // 현재 위치 가져오기
+      const currentLocation = await getCurrentLocation();
+      // 다시 요청 목록 띄워줌 (현재 위치 기준으로)
+      const newDeliveryRequests = await getDeliveryRequests(riderId, {
+        latitude: currentLocation.coords.latitude,
+        longitude: currentLocation.coords.longitude,
+      });
+      console.log("현재 위치 기준, 요청 목록 가져오기 완료");
+      setDeliveryRequests(newDeliveryRequests);
+    }
+  };
+
+  const copyToClipboard = async () => {
+    await Clipboard.setStringAsync(orderedItem.storeAddress);
+  };
+
+  const saveCurrentRiderLocation = async (riderId, orderId) => {
+    const currentLocation = await getCurrentLocation();
+    const req = {
+      riderId: riderId,
+      orderId: orderId,
+      riderLatitude: currentLocation.coords.latitude,
+      riderLongitude: currentLocation.coords.longitude,
+    };
+    await saveRiderLocation(req);
+  };
+
+  useEffect(() => {
+    setCurrentLocation();
+  }, []);
+
+  useEffect(() => {
+    setMapHtml(generateMapHtml());
+    // console.log(mapHtml);
+  }, [location, deliveryRequests]);
+
+  return (
+    <>
+      <StatusBar backgroundColor="#94D35C" barStyle="dark-content" />
+      <View style={styles.webviewContainer}>
+        <WebView
+          style={styles.webview}
+          originWhitelist={["*"]}
+          source={{ html: mapHtml }}
+          onMessage={handleMessage}
+        />
+        <TouchableOpacity
+          style={styles.menu}
+          onPress={() => navigation.openDrawer()}
+        >
+          <Text style={styles.menuText}>☰</Text>
+        </TouchableOpacity>
+        <View style={styles.amount}>
+          <Text style={styles.amountText}>30000원</Text>
+        </View>
+        <TouchableOpacity style={styles.gps} onPress={setCurrentLocation}>
+          <Text style={styles.gpsText}>➤</Text>
+        </TouchableOpacity>
+        {orderedItem && activationText === "비활성화" && (
+          <View style={styles.orderedItem}>
+            <View style={styles.copyContainer}>
+              <Text style={styles.orderedItemTitle}>
+                수락한 가게 정보를 안내 드려요
+              </Text>
+              <TouchableOpacity
+                style={styles.copyButton}
+                onPress={copyToClipboard}
+              >
+                <Text style={styles.copyText}>주소 복사</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.orderedItemContents}>
+              {orderedItem.storeName}
+            </Text>
+            <Text style={styles.orderedItemContents}>
+              {orderedItem.storeAddress}
+            </Text>
+            <TouchableOpacity
+              style={styles.orderedItemButton}
+              onPress={updateDeliveryState}
+            >
+              <Text style={styles.orderedItemButtonText}>
+                {deliveryButtonText}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        <TouchableOpacity
+          style={styles.activationButton}
+          onPress={clickOnActivationButton}
+          disabled={activationButtonDisabled}
+        >
+          <Text style={styles.activationText}>{activationText}</Text>
+        </TouchableOpacity>
+        <Text style={styles.activationState}>{activationState}</Text>
+        {/* <WebView style={styles.kakaoNavi} source={{ html: turnOnNavi()}} originWhitelist={['*']} onShouldStartLoadWithRequest={onShouldStartLoadWithRequest}/> */}
+      </View>
+    </>
+  );
+}
+//
+const styles = StyleSheet.create({
+  copyContainer: {
+    flexDirection: "row",
+    columnGap: 20,
+    justifyContent: "space-between",
+  },
+
+  copyButton: {
+    // marginTop: 10,
+    borderRadius: 50,
+    padding: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+
+  copyText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  webviewContainer: {
+    flex: 1,
+  },
+
+  webview: {
+    marginTop: -10,
+    marginHorizontal: -10,
+    flex: 1,
+  },
+
+  menu: {
+    position: "absolute",
+    top: "5%",
+    left: "5%",
+    borderRadius: 50,
+    width: 50,
+    height: 50,
+    backgroundColor: "#94D35C",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  menuText: {
+    fontSize: 30,
+  },
+
+  amount: {
+    alignSelf: "center",
+    position: "absolute",
+    top: "5%",
+    borderRadius: 20,
+    width: 120,
+    height: 50,
+    backgroundColor: "#94D35C",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  amountText: {
+    fontSize: 20,
+  },
+
+  gps: {
+    position: "absolute",
+    top: "5%",
+    left: "80%",
+    borderRadius: 50,
+    width: 50,
+    height: 50,
+    backgroundColor: "#94D35C",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+
+  gpsText: {
+    fontSize: 20,
+  },
+
+  orderedItem: {
+    position: "absolute",
+    top: "15%",
+    left: "5%",
+    borderRadius: 20,
+    width: "89%",
+    padding: 15,
+    backgroundColor: "rgba(73, 195, 247, 0.8)",
+  },
+
+  orderedItemTitle: {
+    fontSize: 15,
+    marginBottom: 5,
+  },
+
+  orderedItemContents: {
+    fontSize: 20,
+    marginBottom: 5,
+    fontWeight: "600",
+  },
+
+  orderedItemButton: {
+    marginTop: 10,
+    borderRadius: 50,
+    padding: 10,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "white",
+  },
+
+  orderedItemButtonText: {
+    fontSize: 15,
+    fontWeight: "600",
+  },
+
+  activationButton: {
+    alignSelf: "center",
+    position: "absolute",
+    top: "78%",
+    borderRadius: 50,
+    width: 90,
+    height: 90,
+    backgroundColor: "#94D35C",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  activationText: {
+    fontSize: 20,
+  },
+
+  activationState: {
+    marginTop: 0,
+    paddingTop: 10,
+    paddingBottom: 10,
+    backgroundColor: "#94D35C",
+    textAlign: "center",
+    fontSize: 20,
+  },
 });
