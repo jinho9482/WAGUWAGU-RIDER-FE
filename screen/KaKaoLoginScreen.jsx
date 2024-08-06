@@ -6,7 +6,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const REST_API_KEY = "f8609808f0ad80f284bc679eb3d80315";
-const REDIRECT_URI = "http://192.168.0.15:8081/Home";
+const REDIRECT_URI = "http://192.168.0.25:8081/Home";
 
 const KaKaoLoginScreen = () => {
   const navigation = useNavigation();
@@ -25,7 +25,7 @@ const KaKaoLoginScreen = () => {
 
       try {
         const response = await axios.get(
-          `http://192.168.0.15:8080/api/v1/riders/callback?code=${authorize_code}`
+          `http://34.41.123.200/api/v1/riders/callback?code=${authorize_code}`
         );
         const accessToken = response.data;
 
