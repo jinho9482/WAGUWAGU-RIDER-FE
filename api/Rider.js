@@ -4,6 +4,6 @@ export const changeActivationState = async (id, data) => {
   try {
     await api(`/api/v1/riders/${id}/activation`, "put", { onOff: data });
   } catch (e) {
-    console.error("Errors in changeActivationState", error);
+    console.error("Errors in changeActivationState", e);
   }
 };

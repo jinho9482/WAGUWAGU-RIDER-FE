@@ -15,19 +15,19 @@ export const getDeliveryRequests = async (riderId, riderAssignRequest) => {
   }
 };
 
-export const moveDeliveryRequestToPostgres = async (id, riderId) => {
-  try {
-    console.log(riderId);
-    await api(`/api/v1/delivery-requests/${id}/rider/${riderId}`, "post");
-  } catch (e) {
-    console.error("Errors in moveDeliveryRequestToPostgres", error);
-  }
-};
-
 export const deleteDeliveryRequest = async (id) => {
+  console.log(id, "id for deleteDeliveryRequest");
   try {
     await api(`/api/v1/delivery-requests/${id}`, "delete");
   } catch (e) {
-    console.error("Errors in deleteDeliveryRequest", error);
+    console.error("Errors in deleteDeliveryRequest", e);
+  }
+};
+
+export const updateRiderAssignedAsTrue = async (id) => {
+  try {
+    await api(`/api/v1/delivery-requests/${id}`, "put");
+  } catch (e) {
+    console.error("Errors in updateRiderAssignedAsTrue", e);
   }
 };

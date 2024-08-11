@@ -33,7 +33,7 @@ const DeliveryHistoryDetail = ({ route }) => {
 
   return (
     <View>
-      <DeliveryHistoryDetailHeader title="일별 상세" />
+      {/* <DeliveryHistoryDetailHeader title="일별 상세" /> */}
 
       <View style={styles.main}>
         <View style={styles.duration}>

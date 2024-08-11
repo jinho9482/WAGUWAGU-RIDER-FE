@@ -1,6 +1,6 @@
 import { api } from "../config/network";
 
-export const saveDeliveryHistoryDetail = async (deliveryHistoryId, body) => {
+export const createDeliveryHistoryDetail = async (deliveryHistoryId, body) => {
   try {
     await api(
       `/api/v1/delivery-history-details/delivery-history/${deliveryHistoryId}`,
@@ -8,7 +8,7 @@ export const saveDeliveryHistoryDetail = async (deliveryHistoryId, body) => {
       body
     );
   } catch (e) {
-    console.error("Errors in saveDeliveryHistoryDetail", error);
+    console.error("Errors in createDeliveryHistoryDetail", e);
   }
 };
 
@@ -21,7 +21,7 @@ export const getHistoryDetailsByHistoryId = async (deliveryHistoryId) => {
     console.log(res.data, "from api, getHistoryDetailsByHistoryId");
     return res.data;
   } catch (e) {
-    console.error("Errors in getHistoryDetailsByHistoryId", error);
+    console.error("Errors in getHistoryDetailsByHistoryId", e);
   }
 };
 
@@ -34,6 +34,6 @@ export const getHistorySummaryByHistoryId = async (deliveryHistoryId) => {
     console.log(res.data, "from api, getHistorySummaryByHistoryId");
     return res.data;
   } catch (e) {
-    console.error("Errors in getHistorySummaryByHistoryId", error);
+    console.error("Errors in getHistorySummaryByHistoryId", e);
   }
 };
