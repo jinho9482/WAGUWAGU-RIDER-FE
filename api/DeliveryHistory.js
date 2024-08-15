@@ -2,7 +2,10 @@ import { api } from "../config/network";
 
 export const getDeliveryHistoriesByRiderId = async (riderId) => {
   try {
-    const res = await api(`/api/v1/delivery-histories/rider/${riderId}`, "get");
+    const res = await api(
+      `/api/v1/riders/delivery-histories/rider/${riderId}`,
+      "get"
+    );
     console.log(res.data, "from api, getDeliveryHistoriesByRiderId");
     return res.data;
   } catch (e) {
@@ -13,7 +16,7 @@ export const getDeliveryHistoriesByRiderId = async (riderId) => {
 export const createDeliveryHistory = async (riderId) => {
   try {
     const res = await api(
-      `/api/v1/delivery-histories/rider/${riderId}`,
+      `/api/v1/riders/delivery-histories/rider/${riderId}`,
       "post"
     );
     console.log(res.data, "from api, createDeliveryHistory");

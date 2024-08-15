@@ -19,7 +19,7 @@ import {
   moveDeliveryRequestToPostgres,
   getDeliveryRequests,
   deleteDeliveryRequest,
-  updateRiderAssignedAsTrue,
+  updateRiderAssigned,
 } from "../api/DeliveryRequest";
 import { updateOrderStateToRedis } from "../api/Order";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -192,20 +192,6 @@ export default function HomeScreen({ navigation }) {
                     customOverlayName[arr.length-1].setMap(map);
                 });
                   
-                  // 라이더 커스텀 오버레이 셋업
-                  // const customOverlayForRider = new kakao.maps.CustomOverlay({
-                  //   position: markerPosition,
-                  //   content: contentForRider,
-                  //   yAnchor: 1,
-                  // });
-                  
-                  // 라이더 커스텀 오버레이 지도 위에 띄우기
-                  // customOverlayForRider.setMap(map);
-                  
-                  // 마커를 눌렀을 때 배달 신청 확인 창 뜨기
-                  // kakao.maps.event.addListener(marker, 'click', function() {
-                  //   window.ReactNativeWebView.postMessage(JSON.stringify(req));
-                  // });
                 } else {
                   const contentForRider = '<div style="margin-top: 8px">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick()">수락</button></div></div>'
                   const originalContent = customOverlayName[arr.indexOf(req.storeAddress)].getContent();
@@ -271,7 +257,7 @@ export default function HomeScreen({ navigation }) {
         status: "배달 수락",
         riderId: riderId,
       });
-      await updateRiderAssignedAsTrue(orderContents.orderId);
+      await updateRiderAssigned(orderContents.orderId);
       console.log("Redis에 assigned true로 변경 완료");
       setActivationButtonDisabled(true);
       setOrderedItem(orderContents);
@@ -328,6 +314,8 @@ export default function HomeScreen({ navigation }) {
         riderId: riderId,
       });
       console.log("배달 완료 업데이트");
+      await updateRiderAssigned(orderedItem.orderId);
+      console.log("Redis에 assigned false로 변경 완료");
       // 라이더 위치 redis 에서 삭제
       await deleteRiderLocation(orderedItem.orderId);
       console.log("실시간 위치 redis에서 삭제 완료");

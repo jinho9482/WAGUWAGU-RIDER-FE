@@ -30,7 +30,6 @@ export const api = async (url, method, body, params) => {
     url,
     method,
     baseURL: "http://34.68.136.4", // baseURL
-    // baseURL: "http://34.68.136.4", // baseURL
     data: body,
     params: params,
     headers: {
