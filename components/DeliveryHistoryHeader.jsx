@@ -33,7 +33,7 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: "#94D35C",
     height: "10vh",
-    paddingVertical: 10,
+    paddingVertical: 15,
   },
 
   menu: {
@@ -49,6 +49,7 @@ const styles = StyleSheet.create({
   title: {
     textAlign: "center",
     fontSize: 25,
+    fontWeight: "500",
   },
 });
 

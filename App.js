@@ -65,12 +65,31 @@ function StackNavigator() {
       <Stack.Screen
         name="DeliveryHistory"
         component={DeliveryHistory}
-        options={{ headerShown: false }}
+        options={{
+          headerTitle: "배달 내역 확인",
+          headerTitleAlign: "center",
+          headerStyle: {
+            backgroundColor: "#94D35C",
+          },
+          headerTitleStyle: {
+            fontSize: 25,
+          },
+          headerBackTitle: "☰",
+        }}
       />
       <Stack.Screen
         name="DeliveryHistoryDetail"
         component={DeliveryHistoryDetail}
-        options={{ headerShown: false }}
+        options={{
+          headerTitle: "일별 상세",
+          headerTitleAlign: "center",
+          headerStyle: {
+            backgroundColor: "#94D35C",
+          },
+          headerTitleStyle: {
+            fontSize: 25,
+          },
+        }}
       />
     </Stack.Navigator>
   );

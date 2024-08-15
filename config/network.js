@@ -29,8 +29,7 @@ export const api = async (url, method, body, params) => {
   const res = await axios({
     url,
     method,
-    baseURL: "http://192.168.45.121:8080", // baseURL
-    // baseURL: "http://34.68.136.4", // baseURL
+    baseURL: "http://34.68.136.4", // baseURL
     data: body,
     params: params,
     headers: {

@@ -4,7 +4,7 @@ import { api } from "../config/network";
 export const getDeliveryRequests = async (riderId, riderAssignRequest) => {
   try {
     const res = await api(
-      `/api/v1/delivery-requests/riders/${riderId}/assign`,
+      `/api/v1/riders/delivery-requests/riders/${riderId}/assign`,
       "post",
       riderAssignRequest
     );
@@ -15,19 +15,19 @@ export const getDeliveryRequests = async (riderId, riderAssignRequest) => {
   }
 };
 
-export const moveDeliveryRequestToPostgres = async (id, riderId) => {
+export const deleteDeliveryRequest = async (id) => {
+  console.log(id, "id for deleteDeliveryRequest");
   try {
-    console.log(riderId);
-    await api(`/api/v1/delivery-requests/${id}/rider/${riderId}`, "post");
+    await api(`/api/v1/riders/delivery-requests/${id}`, "delete");
   } catch (e) {
-    console.error("Errors in moveDeliveryRequestToPostgres", error);
+    console.error("Errors in deleteDeliveryRequest", e);
   }
 };
 
-export const deleteDeliveryRequest = async (id) => {
+export const updateRiderAssigned = async (id) => {
   try {
-    await api(`/api/v1/delivery-requests/${id}`, "delete");
+    await api(`/api/v1/riders/delivery-requests/${id}`, "put");
   } catch (e) {
-    console.error("Errors in deleteDeliveryRequest", error);
+    console.error("Errors in updateRiderAssignedAsTrue", e);
   }
 };
