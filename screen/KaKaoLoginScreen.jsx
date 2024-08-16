@@ -6,7 +6,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const REST_API_KEY = "f8609808f0ad80f284bc679eb3d80315";
-const REDIRECT_URI = "http://192.168.0.25:8081/Home";
+const REDIRECT_URI = "http://221.151.189.125:8081/Home";
 
 const KaKaoLoginScreen = () => {
   const navigation = useNavigation();
