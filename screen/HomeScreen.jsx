@@ -16,7 +16,6 @@ import { useEffect, useRef, useState } from "react";
 import * as Location from "expo-location";
 import { changeActivationState } from "../api/Rider";
 import {
-  moveDeliveryRequestToPostgres,
   getDeliveryRequests,
   deleteDeliveryRequest,
   updateRiderAssigned,
@@ -25,16 +24,26 @@ import { updateOrderStateToRedis } from "../api/Order";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Clipboard from "expo-clipboard";
 import { deleteRiderLocation, saveRiderLocation } from "../api/RiderLocation";
-import { createDeliveryHistory } from "../api/DeliveryHistory";
+import {
+  createDeliveryHistory,
+  getDeliveryHistoriesByRiderId,
+  getTodayDeliveryHistoriesByRiderId,
+  getTodayDeliveryHistoryByRiderId,
+} from "../api/DeliveryHistory";
 import {
   createDeliveryHistoryDetail,
   getHistorySummaryByHistoryId,
 } from "../api/DeliveryHistoryDetail";
+import { ActivityIndicator } from "react-native-paper";
+import { Asset } from "expo-asset";
 
 export default function HomeScreen({ navigation }) {
-  const localImage = Image.resolveAssetSource(
+  const localImage = Asset.fromModule(
     require("../assets/my-location-marker.png")
   ).uri;
+  // const localImage = Image.resolveAssetSource(
+  //   require("../assets/my-location-marker.png")
+  // ).uri;
   const [location, setLocation] = useState({
     coords: { latitude: 37.484918, longitude: 127.01629 },
   }); // 학원 주소를 기본 값으로
@@ -52,6 +61,8 @@ export default function HomeScreen({ navigation }) {
 
   const [intervalId, setIntervalId] = useState(null);
   const [deliveryIncome, setDeliveryIncome] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [deliveryIsDone, setDeliveryIsDone] = useState(null);
   const webviewRef = useRef(null);
 
   const setCurrentLocation = async () => {
@@ -154,18 +165,30 @@ export default function HomeScreen({ navigation }) {
             if (${JSON.stringify(deliveryRequests)} && ${JSON.stringify(
         deliveryRequests
       )}.length > 0) {
-              const arr = []; // 가게 주소를 넣음
-              const customOverlayName = []; // customOverlay 변수를 추가
-              for (const req of ${JSON.stringify(deliveryRequests)}) {
-                function onClick() {
-                  window.ReactNativeWebView.postMessage(JSON.stringify(req));
+                const arr = {}; // 가게 주소와 index를 넣음
+                const customOverlayName = []; // customOverlay 변수를 추가
+                let storeIndex = -1;
+                let requestIndex = -1;
+                for (const req of ${JSON.stringify(deliveryRequests)}) {
+                
+                requestIndex++;
+
+                function onClick(requestIndex) {
+                  window.ReactNativeWebView.postMessage(JSON.stringify(${JSON.stringify(
+                    deliveryRequests
+                  )}[requestIndex]));
+                }
+                
+                function closeOverlay(storeIndex) {
+                  customOverlayName[storeIndex].setMap(null);     
                 }
 
-                if (arr.indexOf(req.storeAddress) === -1) {
-                  arr.push(req.storeAddress);             
+                if (arr[req.storeAddress] === undefined) { // 해당 가게 주소가 arr에 없다면,
+                  storeIndex++;
+                  arr[req.storeAddress] = storeIndex; // {조랭이네 : 0, 장꼬방 : 1, 짱구네 : 2}   
 
                   // 인포윈도우에 표출될 내용으로 HTML 문자열이나 document element가 가능합니다
-                  const contentForRider = '<div style="padding:5px; width:fit-content; height:100%; background-color:white; border-radius:10px; border: 1px solid lightblue; box-shadow: 2px 2px 2px #60b6f7;">' + req.storeName + '<button style="margin-left: 10px; border: none; background-color: white" onclick="closeOverlay()">❌</button><br>(' + req.distanceFromStoreToRider + 'km)<hr style="border-color:lightblue;">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick()">수락</button></div>'
+                  const contentForRider = '<div style="padding:5px; width:fit-content; height:100%; background-color:white; border-radius:10px; border: 1px solid lightblue; box-shadow: 2px 2px 2px #60b6f7;">' + req.storeName + '<button style="margin-left: 10px; border: none; background-color: white;" onclick="closeOverlay(' + storeIndex + ')">❌</button><br>(' + req.distanceFromStoreToRider + 'km)<hr style="border-color:lightblue;">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick(' + requestIndex + ')">수락</button></div>'
 
                   const markerPosition = new kakao.maps.LatLng(req.storeLatitude, req.storeLongitude); //인포윈도우 표시 위치입니다
                   // 마커를 생성합니다
@@ -176,29 +199,26 @@ export default function HomeScreen({ navigation }) {
                   // 마커가 지도 위에 표시되도록 설정합니다
                   marker.setMap(map);
 
-                  customOverlayName[arr.length-1] = new kakao.maps.CustomOverlay({
+                  customOverlayName[storeIndex] = new kakao.maps.CustomOverlay({
                     position: markerPosition,
                     content: contentForRider,
                     yAnchor: 1.5,
                   });
 
-                  customOverlayName[arr.length-1].setMap(map);
-
-                  function closeOverlay() {
-                    customOverlayName[arr.length-1].setMap(null);     
-                  }
+                  // customOverlayName[storeIndex].setMap(map);
 
                   kakao.maps.event.addListener(marker, 'click', function() {
-                    customOverlayName[arr.length-1].setMap(map);
+                    customOverlayName[arr[req.storeAddress]].setMap(map);
                 });
-                  
+
+
                 } else {
-                  const contentForRider = '<div style="margin-top: 8px">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick()">수락</button></div></div>'
-                  const originalContent = customOverlayName[arr.indexOf(req.storeAddress)].getContent();
+                  const contentForRider = '<div style="margin-top: 8px">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick(' + requestIndex + ')">수락</button></div></div>'
+                  const originalContent = customOverlayName[arr[req.storeAddress]].getContent();
                   
                   const newContent = originalContent.substring(0, originalContent.length-6)  + contentForRider;
               
-                  customOverlayName[arr.indexOf(req.storeAddress)].setContent(newContent);
+                  customOverlayName[arr[req.storeAddress]].setContent(newContent);
                 };               
               };
             };
@@ -225,17 +245,23 @@ export default function HomeScreen({ navigation }) {
   };
 
   const handleMessage = (event) => {
-    Alert.alert("알람", "배달 수락하시겠습니까?", [
-      {
-        text: "취소",
-        onPress: () => console.log("배달 수락이 취소되었습니다"),
-      },
-      { text: "수락", onPress: () => assignRider(event) },
-    ]);
+    console.log(event);
+    Alert.alert(
+      JSON.parse(event.nativeEvent.data).storeName,
+      "\n수락 후에는 취소할 수 없습니다.\n배달 수락하시겠습니까?",
+      [
+        {
+          text: "취소",
+          onPress: () => console.log("배달 수락이 취소되었습니다"),
+        },
+        { text: "수락", onPress: () => assignRider(event) },
+      ]
+    );
   };
 
   const assignRider = async (event) => {
     // console.log(event);
+    console.log(event);
     const nativeEventData = event.nativeEvent.data;
     const riderId = await AsyncStorage.getItem("riderId");
 
@@ -337,8 +363,7 @@ export default function HomeScreen({ navigation }) {
       );
       console.log("배달 상세 내역 생성 완료");
       // 오늘 수입 최신화
-      const totalDeliveryIncome = deliveryIncome + orderedItem.deliveryPay;
-      setDeliveryIncome(totalDeliveryIncome);
+      setDeliveryIsDone({});
       // 주문 수락 건 창 끄고 기본값으로 세팅
       setOrderedItem(null);
       setDeliveryButtonText("픽업 완료 & 배달 시작");
@@ -391,11 +416,15 @@ export default function HomeScreen({ navigation }) {
     })();
     `;
 
-  // const changeLocation = `
-  //   (function() {
-  //     location=${location}
-  //   })();
-  // `;
+  const getTodayDeliveryHistory = async () => {
+    const riderId = await AsyncStorage.getItem("riderId");
+    console.log(riderId);
+    const res = await getTodayDeliveryHistoryByRiderId(riderId);
+    if (res !== "No history") {
+      const summary = getHistorySummaryByHistoryId(res.deliveryHistoryId);
+      setDeliveryIncome(summary.deliveryTotalIncome);
+    } else setDeliveryIncome(0);
+  };
 
   useEffect(() => {
     setMapHtml(generateMapHtml());
@@ -407,10 +436,17 @@ export default function HomeScreen({ navigation }) {
     }
   }, [location]);
 
+  useEffect(() => {
+    getTodayDeliveryHistory();
+  }, [deliveryIsDone]);
+
   return (
     <>
       <StatusBar backgroundColor="#94D35C" barStyle="dark-content" />
       <View style={styles.webviewContainer}>
+        {loading && (
+          <ActivityIndicator size="20" color="#94D35C" style={styles.loading} />
+        )}
         <WebView
           ref={webviewRef}
           style={styles.webview}
@@ -418,6 +454,7 @@ export default function HomeScreen({ navigation }) {
           source={{ html: mapHtml }}
           onMessage={handleMessage}
           injectedJavaScript={changeLocation}
+          onLoadEnd={() => setLoading(false)}
         />
         <TouchableOpacity
           style={styles.menu}
@@ -449,6 +486,12 @@ export default function HomeScreen({ navigation }) {
             </Text>
             <Text style={styles.orderedItemContents}>
               {orderedItem.storeAddress}
+            </Text>
+            <Text style={styles.orderedItemContents}>
+              주문 번호 : {orderedItem.orderId}
+            </Text>
+            <Text style={[styles.orderedItemTitle, { fontWeight: "600" }]}>
+              (픽업하실 때 영수증의 주문 번호와 맞는지 확인해주세요)
             </Text>
             <TouchableOpacity
               style={styles.orderedItemButton}
@@ -491,12 +534,17 @@ const styles = StyleSheet.create({
   },
 
   copyText: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "600",
   },
 
   webviewContainer: {
     flex: 1,
+  },
+
+  loading: {
+    justifyContent: "center",
+    alignSelf: "center",
   },
 
   webview: {
@@ -576,7 +624,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     width: "89%",
     padding: 15,
-    backgroundColor: "rgba(73, 195, 247, 0.8)",
+    backgroundColor: "#94d8ff",
   },
 
   orderedItemTitle: {

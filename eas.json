@@ -7,7 +7,7 @@
       "developmentClient": true,
       "distribution": "internal"
     },
-    "preview": {
+    "local": {
       "distribution": "internal"
     },
     "production": {}
