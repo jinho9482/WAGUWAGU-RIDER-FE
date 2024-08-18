@@ -25,3 +25,16 @@ export const createDeliveryHistory = async (riderId) => {
     console.error("Errors in createDeliveryHistory", e);
   }
 };
+
+export const getTodayDeliveryHistoryByRiderId = async (riderId) => {
+  try {
+    const res = await api(
+      `/api/v1/riders/delivery-histories/today/rider/${riderId}`,
+      "get"
+    );
+    console.log(res.data, "from api, getTodayDeliveryHistoriesByRiderId");
+    return res.data;
+  } catch (e) {
+    return "No history";
+  }
+};
