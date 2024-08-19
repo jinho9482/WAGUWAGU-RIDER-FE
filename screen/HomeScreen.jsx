@@ -35,11 +35,6 @@ import {
 import { ActivityIndicator } from "react-native-paper";
 
 export default function HomeScreen({ navigation }) {
-  // const localImage = "file:///assets/my-location-marker.png";
-  // const localImage = require("../assets/my-location-marker.png").uri;
-  const localImage = Image.resolveAssetSource(
-    require("../assets/my-location-marker.png")
-  ).uri;
   const [location, setLocation] = useState({
     coords: { latitude: 37.484918, longitude: 127.01629 },
   }); // 학원 주소를 기본 값으로
@@ -218,7 +213,7 @@ export default function HomeScreen({ navigation }) {
                   };               
                 };
               };
-              const imageSrc = '${localImage}', // 마커이미지의 주소입니다    
+              const imageSrc = 'https://cdn-icons-png.flaticon.com/128/14831/14831599.png', // 마커이미지의 주소입니다    
                 imageSize = new kakao.maps.Size(53, 50), // 마커이미지의 크기입니다
                 imageOption = {offset: new kakao.maps.Point(27, 69)}; // 마커이미지의 옵션입니다. 마커의 좌표와 일치시킬 이미지 안에서의 좌표를 설정합니다.
                   
@@ -416,7 +411,7 @@ export default function HomeScreen({ navigation }) {
     const riderId = await AsyncStorage.getItem("riderId");
     console.log(riderId);
     const res = await getTodayDeliveryHistoryByRiderId(riderId);
-    if (res === null) {
+    if (!res) {
       setDeliveryIncome(0);
     } else {
       const summary = await getHistorySummaryByHistoryId(res.deliveryHistoryId);
