@@ -1,9 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { useEffect, useState } from "react";
 import DeliveryHistoryDetailContents from "../components/DeliveryHistoryDetailContents";
-import DeliveryHistoryDetailHeader from "../components/DeliveryHistoryDetailHeader";
 import { getHistoryDetailsByHistoryId } from "../api/DeliveryHistoryDetail";
-import DeliveryHistoryHeader from "../components/DeliveryHistoryDetailHeader";
 
 const DeliveryHistoryDetail = ({ route }) => {
   console.log(route, "*****route******");

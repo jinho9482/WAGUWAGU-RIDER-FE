@@ -13,6 +13,7 @@ import MyPage from "./screen/MypageScreen";
 import DeliveryHistory from "./screen/DeliveryHistory";
 import DeliveryHistoryDetail from "./screen/DeliveryHistoryDetail";
 import { RecoilRoot } from "recoil";
+import { StyleSheet, View } from "react-native";
 
 // 네비게이터 생성
 const Stack = createStackNavigator();
@@ -27,7 +28,6 @@ function DrawerNavigator() {
     >
       <Drawer.Screen name="홈" component={HomeScreen} />
       <Drawer.Screen name="배달 내역 확인" component={DeliveryHistory} />
-      {/* <Drawer.Screen name="일별 상세" component={DeliveryHistoryDetail} /> */}
       <Drawer.Screen name="마이페이지" component={MyPage} />
     </Drawer.Navigator>
   );
@@ -36,64 +36,78 @@ function DrawerNavigator() {
 // Stack 네비게이터 정의
 function StackNavigator() {
   return (
-    <Stack.Navigator initialRouteName="Login">
-      <Stack.Screen
-        name="Login"
-        component={LoginScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="KaKaoLoginScreen"
-        component={KaKaoLoginScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="SignupScreen"
-        component={SignupScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Mypage"
-        component={MypageScreen}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="Main"
-        component={DrawerNavigator}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="DeliveryHistory"
-        component={DeliveryHistory}
-        options={{
-          headerTitle: "배달 내역 확인",
-          headerTitleAlign: "center",
-          headerStyle: {
-            backgroundColor: "#94D35C",
-          },
-          headerTitleStyle: {
-            fontSize: 25,
-          },
-          headerBackTitle: "☰",
-        }}
-      />
-      <Stack.Screen
-        name="DeliveryHistoryDetail"
-        component={DeliveryHistoryDetail}
-        options={{
-          headerTitle: "일별 상세",
-          headerTitleAlign: "center",
-          headerStyle: {
-            backgroundColor: "#94D35C",
-          },
-          headerTitleStyle: {
-            fontSize: 25,
-          },
-        }}
-      />
-    </Stack.Navigator>
+    <>
+      <View style={styles.header}></View>
+      <Stack.Navigator initialRouteName="Login">
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="KaKaoLoginScreen"
+          component={KaKaoLoginScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="SignupScreen"
+          component={SignupScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Mypage"
+          component={MypageScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="Main"
+          component={DrawerNavigator}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="DeliveryHistory"
+          component={DeliveryHistory}
+          options={{
+            headerTitle: "배달 내역 확인",
+            headerTitleAlign: "center",
+            headerStyle: {
+              backgroundColor: "#94D35C",
+            },
+            headerTitleStyle: {
+              fontSize: 25,
+            },
+            headerBackTitle: "☰",
+          }}
+        />
+        <Stack.Screen
+          name="DeliveryHistoryDetail"
+          component={DeliveryHistoryDetail}
+          options={{
+            headerTitle: "일별 상세",
+            headerTitleAlign: "center",
+            headerStyle: {
+              backgroundColor: "#F1D3CE",
+            },
+            headerTitleStyle: {
+              fontSize: 25,
+            },
+          }}
+        />
+      </Stack.Navigator>
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  header: {
+    height: 30,
+    // flex: 0.02,
+    // padding: 16,
+    backgroundColor: "#F1D3CE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
 
 export default function App() {
   return (
