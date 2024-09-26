@@ -4,7 +4,7 @@ import axios from "axios";
 export const updateOrderStateToRedis = async (orderId, updateRequest) => {
   try {
     await axios.post(
-      `http://35.223.83.225/api/v1/order/request/${orderId}`,
+      `http://35.184.212.63/api/v1/orders/request/${orderId}`,
       updateRequest
       // { headers: { Authorization: "" } }
     );

@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     alignSelf: "flex-end",
-    backgroundColor: "#94D35C",
+    backgroundColor: "#EECAD5",
   },
 
   filterButtonText: {
@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
 
   sortSettingBoxClicked: {
-    backgroundColor: "#94D35C",
+    backgroundColor: "#EECAD5",
   },
 
   sortSettingText: {
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
     padding: 5,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#94D35C",
+    backgroundColor: "#EECAD5",
     alignSelf: "flex-end",
   },
 

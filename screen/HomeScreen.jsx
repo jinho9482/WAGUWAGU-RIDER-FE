@@ -26,8 +26,6 @@ import * as Clipboard from "expo-clipboard";
 import { deleteRiderLocation, saveRiderLocation } from "../api/RiderLocation";
 import {
   createDeliveryHistory,
-  getDeliveryHistoriesByRiderId,
-  getTodayDeliveryHistoriesByRiderId,
   getTodayDeliveryHistoryByRiderId,
 } from "../api/DeliveryHistory";
 import {
@@ -35,15 +33,8 @@ import {
   getHistorySummaryByHistoryId,
 } from "../api/DeliveryHistoryDetail";
 import { ActivityIndicator } from "react-native-paper";
-import { Asset } from "expo-asset";
 
 export default function HomeScreen({ navigation }) {
-  const localImage = Asset.fromModule(
-    require("../assets/my-location-marker.png")
-  ).uri;
-  // const localImage = Image.resolveAssetSource(
-  //   require("../assets/my-location-marker.png")
-  // ).uri;
   const [location, setLocation] = useState({
     coords: { latitude: 37.484918, longitude: 127.01629 },
   }); // 학원 주소를 기본 값으로
@@ -131,116 +122,116 @@ export default function HomeScreen({ navigation }) {
     if (location) {
       // console.log(location, "mapHtml 렌더링");
       return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
-        <title>Kakao 지도 시작하기</title>
-        <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a6546188cab40bea0d30c30a1d2c578d&libraries=services"></script>
-      </head>
-      <body>
-        <div id="map" style="width:100%;height:100vh;"></div>
-        <script>
-            const mapContainer = document.getElementById('map');
-            const locPosition = new kakao.maps.LatLng(${
-              location.coords.latitude
-            }, ${location.coords.longitude});  
-            const mapOption = {
-              center: locPosition,
-              level: 6,
-            };
-            
-            const map = new kakao.maps.Map(mapContainer, mapOption);
-            
-            // if (${activationText} === "비활성화") {
-            //     kakao.maps.event.addListener(map, 'dragend', function() {
-            //         window.ReactNativeWebView.postMessage("배달 목록 갱신");    
-            //     });
-            // }
-            
-            // 지도를 드래그하고 놓았을 때 (이동), 이동한 위치를 중심으로 deliveryRequests를 갱신하고 새로 렌더링 한다.
-            // debug : deliveryRequest가 없다면 영원히 드래그해도 새 것을 가져오지 않음
-            
-            
-            if (${JSON.stringify(deliveryRequests)} && ${JSON.stringify(
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8" name="viewport" content="width=device-width, initial-scale=1">
+          <title>Kakao 지도 시작하기</title>
+          <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=a6546188cab40bea0d30c30a1d2c578d&libraries=services"></script>
+        </head>
+        <body>
+          <div id="map" style="width:100%;height:100vh;"></div>
+          <script>
+              const mapContainer = document.getElementById('map');
+              const locPosition = new kakao.maps.LatLng(${
+                location.coords.latitude
+              }, ${location.coords.longitude});  
+              const mapOption = {
+                center: locPosition,
+                level: 6,
+              };
+              
+              const map = new kakao.maps.Map(mapContainer, mapOption);
+              
+              // if (${activationText} === "비활성화") {
+              //     kakao.maps.event.addListener(map, 'dragend', function() {
+              //         window.ReactNativeWebView.postMessage("배달 목록 갱신");    
+              //     });
+              // }
+              
+              // 지도를 드래그하고 놓았을 때 (이동), 이동한 위치를 중심으로 deliveryRequests를 갱신하고 새로 렌더링 한다.
+              // debug : deliveryRequest가 없다면 영원히 드래그해도 새 것을 가져오지 않음
+              
+              
+              if (${JSON.stringify(deliveryRequests)} && ${JSON.stringify(
         deliveryRequests
       )}.length > 0) {
-                const arr = {}; // 가게 주소와 index를 넣음
-                const customOverlayName = []; // customOverlay 변수를 추가
-                let storeIndex = -1;
-                let requestIndex = -1;
-                for (const req of ${JSON.stringify(deliveryRequests)}) {
-                
-                requestIndex++;
-
-                function onClick(requestIndex) {
-                  window.ReactNativeWebView.postMessage(JSON.stringify(${JSON.stringify(
-                    deliveryRequests
-                  )}[requestIndex]));
-                }
-                
-                function closeOverlay(storeIndex) {
-                  customOverlayName[storeIndex].setMap(null);     
-                }
-
-                if (arr[req.storeAddress] === undefined) { // 해당 가게 주소가 arr에 없다면,
-                  storeIndex++;
-                  arr[req.storeAddress] = storeIndex; // {조랭이네 : 0, 장꼬방 : 1, 짱구네 : 2}   
-
-                  // 인포윈도우에 표출될 내용으로 HTML 문자열이나 document element가 가능합니다
-                  const contentForRider = '<div style="padding:5px; width:fit-content; height:100%; background-color:white; border-radius:10px; border: 1px solid lightblue; box-shadow: 2px 2px 2px #60b6f7;">' + req.storeName + '<button style="margin-left: 10px; border: none; background-color: white;" onclick="closeOverlay(' + storeIndex + ')">❌</button><br>(' + req.distanceFromStoreToRider + 'km)<hr style="border-color:lightblue;">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick(' + requestIndex + ')">수락</button></div>'
-
-                  const markerPosition = new kakao.maps.LatLng(req.storeLatitude, req.storeLongitude); //인포윈도우 표시 위치입니다
-                  // 마커를 생성합니다
-                  const marker = new kakao.maps.Marker({
-                      position: markerPosition,
-                      clickable: true
-                  });
-                  // 마커가 지도 위에 표시되도록 설정합니다
-                  marker.setMap(map);
-
-                  customOverlayName[storeIndex] = new kakao.maps.CustomOverlay({
-                    position: markerPosition,
-                    content: contentForRider,
-                    yAnchor: 1.5,
-                  });
-
-                  // customOverlayName[storeIndex].setMap(map);
-
-                  kakao.maps.event.addListener(marker, 'click', function() {
-                    customOverlayName[arr[req.storeAddress]].setMap(map);
-                });
-
-
-                } else {
-                  const contentForRider = '<div style="margin-top: 8px">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick(' + requestIndex + ')">수락</button></div></div>'
-                  const originalContent = customOverlayName[arr[req.storeAddress]].getContent();
+                  const storeAddressAndIndex = {}; // 가게 주소와 index를 넣음
+                  const customOverlayName = []; // customOverlay 변수를 추가
+                  let storeIndex = -1;
+                  let requestIndex = -1;
+                  for (const req of ${JSON.stringify(deliveryRequests)}) {
                   
-                  const newContent = originalContent.substring(0, originalContent.length-6)  + contentForRider;
-              
-                  customOverlayName[arr[req.storeAddress]].setContent(newContent);
-                };               
-              };
-            };
-            const imageSrc = '${localImage}', // 마커이미지의 주소입니다    
-              imageSize = new kakao.maps.Size(53, 50), // 마커이미지의 크기입니다
-              imageOption = {offset: new kakao.maps.Point(27, 69)}; // 마커이미지의 옵션입니다. 마커의 좌표와 일치시킬 이미지 안에서의 좌표를 설정합니다.
+                  requestIndex++;
+
+                  function onClick(requestIndex) {
+                    window.ReactNativeWebView.postMessage(JSON.stringify(${JSON.stringify(
+                      deliveryRequests
+                    )}[requestIndex]));
+                  }
+                  
+                  function closeOverlay(storeIndex) {
+                    customOverlayName[storeIndex].setMap(null);     
+                  }
+
+                  if (storeAddressAndIndex[req.storeAddress] === undefined) { // 해당 가게 주소가 storeAddressAndIndex에 없다면,
+                    storeIndex++;
+                    storeAddressAndIndex[req.storeAddress] = storeIndex; // {조랭이네 : 0, 장꼬방 : 1, 짱구네 : 2}   
+
+                    // 인포윈도우에 표출될 내용으로 HTML 문자열이나 document element가 가능합니다
+                    const contentForRider = '<div style="padding:5px; width:fit-content; height:100%; background-color:white; border-radius:10px; border: 1px solid lightblue; box-shadow: 2px 2px 2px #60b6f7;">' + req.storeName + '<button style="margin-left: 10px; border: none; background-color: white;" onclick="closeOverlay(' + storeIndex + ')">❌</button><br>(' + req.distanceFromStoreToRider + 'km)<hr style="border-color:lightblue;">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick(' + requestIndex + ')">수락</button></div>'
+
+                    const markerPosition = new kakao.maps.LatLng(req.storeLatitude, req.storeLongitude); //인포윈도우 표시 위치입니다
+                    // 마커를 생성합니다
+                    const marker = new kakao.maps.Marker({
+                        position: markerPosition,
+                        clickable: true
+                    });
+                    // 마커가 지도 위에 표시되도록 설정합니다
+                    marker.setMap(map);
+
+                    customOverlayName[storeIndex] = new kakao.maps.CustomOverlay({
+                      position: markerPosition,
+                      content: contentForRider,
+                      yAnchor: 1.5,
+                    });
+
+                    // customOverlayName[storeIndex].setMap(map);
+
+                    kakao.maps.event.addListener(marker, 'click', function() {
+                      customOverlayName[storeAddressAndIndex[req.storeAddress]].setMap(map);
+                  });
+
+
+                  } else {
+                    const contentForRider = '<div style="margin-top: 8px">' + req.deliveryPay + '원<button style="margin-left: 10px; background-color:white; border: 1px solid skyblue; border-radius: 10px; box-shadow: 1px 1px 1px #60b6f7;" onclick="onClick(' + requestIndex + ')">수락</button></div></div>'
+                    const originalContent = customOverlayName[storeAddressAndIndex[req.storeAddress]].getContent();
+                    
+                    const newContent = originalContent.substring(0, originalContent.length-6)  + contentForRider;
                 
-            // 마커의 이미지정보를 가지고 있는 마커이미지를 생성합니다
-            const markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption),
-                markerPosition = new kakao.maps.LatLng(${
-                  location.coords.latitude
-                }, ${location.coords.longitude}); // 마커가 표시될 위치입니다
-            // 마커를 생성합니다
-            const marker = new kakao.maps.Marker({
-                position: markerPosition, 
-                image: markerImage // 마커이미지 설정 
-            });
-            marker.setMap(map);          
-        </script>
-      </body>
-      </html>
-      `;
+                    customOverlayName[storeAddressAndIndex[req.storeAddress]].setContent(newContent);
+                  };               
+                };
+              };
+              const imageSrc = 'https://cdn-icons-png.flaticon.com/128/14831/14831599.png', // 마커이미지의 주소입니다    
+                imageSize = new kakao.maps.Size(53, 50), // 마커이미지의 크기입니다
+                imageOption = {offset: new kakao.maps.Point(27, 69)}; // 마커이미지의 옵션입니다. 마커의 좌표와 일치시킬 이미지 안에서의 좌표를 설정합니다.
+                  
+              // 마커의 이미지정보를 가지고 있는 마커이미지를 생성합니다
+              const markerImage = new kakao.maps.MarkerImage(imageSrc, imageSize, imageOption),
+                  markerPosition = new kakao.maps.LatLng(${
+                    location.coords.latitude
+                  }, ${location.coords.longitude}); // 마커가 표시될 위치입니다
+              // 마커를 생성합니다
+              const marker = new kakao.maps.Marker({
+                  position: markerPosition, 
+                  image: markerImage // 마커이미지 설정 
+              });
+              marker.setMap(map);          
+          </script>
+        </body>
+        </html>
+        `;
     }
   };
 
@@ -409,21 +400,23 @@ export default function HomeScreen({ navigation }) {
   // }, []);
 
   const changeLocation = `
-    (function(){
-      map.setCenter(new kakao.maps.LatLng(${location.coords.latitude}, ${location.coords.longitude}));
-      map.setLevel(6, {animate: true});
-      marker.setPosition(new kakao.maps.LatLng(${location.coords.latitude}, ${location.coords.longitude}));
-    })();
-    `;
+      (function(){
+        map.setCenter(new kakao.maps.LatLng(${location.coords.latitude}, ${location.coords.longitude}));
+        map.setLevel(6, {animate: true});
+        marker.setPosition(new kakao.maps.LatLng(${location.coords.latitude}, ${location.coords.longitude}));
+      })();
+      `;
 
   const getTodayDeliveryHistory = async () => {
     const riderId = await AsyncStorage.getItem("riderId");
     console.log(riderId);
     const res = await getTodayDeliveryHistoryByRiderId(riderId);
-    if (res !== "No history") {
-      const summary = getHistorySummaryByHistoryId(res.deliveryHistoryId);
+    if (!res) {
+      setDeliveryIncome(0);
+    } else {
+      const summary = await getHistorySummaryByHistoryId(res.deliveryHistoryId);
       setDeliveryIncome(summary.deliveryTotalIncome);
-    } else setDeliveryIncome(0);
+    }
   };
 
   useEffect(() => {
@@ -442,10 +435,10 @@ export default function HomeScreen({ navigation }) {
 
   return (
     <>
-      <StatusBar backgroundColor="#94D35C" barStyle="dark-content" />
+      {/* <StatusBar backgroundColor="#EECAD5" barStyle="dark-content" /> */}
       <View style={styles.webviewContainer}>
         {loading && (
-          <ActivityIndicator size="20" color="#94D35C" style={styles.loading} />
+          <ActivityIndicator size="20" color="#EECAD5" style={styles.loading} />
         )}
         <WebView
           ref={webviewRef}
@@ -487,12 +480,12 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.orderedItemContents}>
               {orderedItem.storeAddress}
             </Text>
-            <Text style={styles.orderedItemContents}>
+            <Text style={styles.orderId}>
               주문 번호 : {orderedItem.orderId}
             </Text>
-            <Text style={[styles.orderedItemTitle, { fontWeight: "600" }]}>
+            {/* <Text style={[styles.orderedItemTitle, { fontWeight: "600" }]}>
               (픽업하실 때 영수증의 주문 번호와 맞는지 확인해주세요)
-            </Text>
+            </Text> */}
             <TouchableOpacity
               style={styles.orderedItemButton}
               onPress={updateDeliveryState}
@@ -560,7 +553,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     width: 50,
     height: 50,
-    backgroundColor: "#94D35C",
+    backgroundColor: "#EECAD5",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -584,9 +577,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     width: 120,
     height: 50,
-    backgroundColor: "#94D35C",
+    backgroundColor: "#EECAD5",
     justifyContent: "center",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 5,
   },
 
   amountText: {
@@ -600,7 +601,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     width: 50,
     height: 50,
-    backgroundColor: "#94D35C",
+    backgroundColor: "#EECAD5",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -638,6 +639,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  orderId: {
+    fontSize: 15,
+    marginTop: 10,
+    marginBottom: 5,
+    fontWeight: "600",
+  },
+
   orderedItemButton: {
     marginTop: 10,
     borderRadius: 50,
@@ -659,7 +667,7 @@ const styles = StyleSheet.create({
     borderRadius: 50,
     width: 90,
     height: 90,
-    backgroundColor: "#94D35C",
+    backgroundColor: "#EECAD5",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#000",
@@ -680,7 +688,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
     paddingTop: 10,
     paddingBottom: 10,
-    backgroundColor: "#94D35C",
+    backgroundColor: "#EECAD5",
     textAlign: "center",
     fontSize: 20,
   },

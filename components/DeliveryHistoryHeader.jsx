@@ -8,7 +8,7 @@ const DeliveryHistoryHeader = ({ title }) => {
     useRecoilState(navigationState);
   return (
     <>
-      <StatusBar backgroundColor="#94D35C" barStyle="dark-content" />
+      {/* <StatusBar backgroundColor="#94D35C" barStyle="dark-content" /> */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.menu}
@@ -31,7 +31,7 @@ const DeliveryHistoryHeader = ({ title }) => {
 
 const styles = StyleSheet.create({
   header: {
-    backgroundColor: "#94D35C",
+    backgroundColor: "#F1D3CE",
     height: "10vh",
     paddingVertical: 15,
   },

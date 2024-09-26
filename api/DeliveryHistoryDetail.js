@@ -31,7 +31,7 @@ export const getHistorySummaryByHistoryId = async (deliveryHistoryId) => {
       `/api/v1/riders/delivery-history-details/summary/delivery-history/${deliveryHistoryId}`,
       "get"
     );
-    console.log(res.data, "from api, getHistorySummaryByHistoryId");
+    console.log(res.data, "from api, getHistorySummaryByHistoryId, ****");
     return res.data;
   } catch (e) {
     console.error("Errors in getHistorySummaryByHistoryId", e);

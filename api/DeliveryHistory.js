@@ -35,6 +35,7 @@ export const getTodayDeliveryHistoryByRiderId = async (riderId) => {
     console.log(res.data, "from api, getTodayDeliveryHistoriesByRiderId");
     return res.data;
   } catch (e) {
-    return "No history";
+    console.error("Errors in getTodayDeliveryHistoryByRiderId", e);
+    // return "No history";
   }
 };
