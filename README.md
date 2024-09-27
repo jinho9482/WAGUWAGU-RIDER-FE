@@ -119,4 +119,7 @@ https://github.com/user-attachments/assets/28ee3ba9-a452-4219-afd1-1b09f6ba4344
 >  }, [riderLocation]);
 > ```
 
-
+**<br>2. useState값을 변경할 때마다 지도 re-rendering 발생 (미해결) <br><br>**
+> * 추정 원인 : WebView에서 사용하고 있는 react native의 useState값은 한 번 값이 설정되면, 그 값이 고정되는 것으로 추정<br><br>
+> * 취한 Action : injectedJavaScript를 통해 변경 값을 주입하였으나 변경되지 않음<br><br>
+> * 추후 Action : 지도 위에 마커를 표시해주는 코드를 전부 injectedJavascript를 통해 주입 (기존에는 특정 변수 값만 변경 시도)
