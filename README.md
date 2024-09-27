@@ -39,7 +39,84 @@ https://github.com/user-attachments/assets/28ee3ba9-a452-4219-afd1-1b09f6ba4344
 
 ## <br>🔧 트러블 슈팅
 
-
-
+**1. WebView와 react native간 데이터 교환 불가<br><br>**
+> * 원인 : Webview는 React native와 별개의 환경에서 동작하기 때문에 서로 데이터 이동을 위한 전달 매개체가 필요했다.<br><br>
+> * 해결 : WebView component의 "onMessage" 와 "injectedJavaScript" property를 통해 데이터 교환
+> 1) onMessage property 사용법
+> ```reactnative
+>  // onMessage property 설정
+> <WebView
+>          ref={webviewRef}
+>          style={styles.webview}
+>          originWhitelist={["*"]}
+>          source={{ html: mapHtml }}
+>          onMessage={handleMessage}
+>          injectedJavaScript={changeLocation}
+>          onLoadEnd={() => setLoading(false)}
+>        />
+>
+> ...
+>
+> // event.nativeEvent.data 를 통해 받음 @ React native 
+>  const handleMessage = (event) => {
+>    console.log(event);
+>    Alert.alert(
+>      JSON.parse(event.nativeEvent.data).storeName,
+>      "\n수락 후에는 취소할 수 없습니다.\n배달 수락하시겠습니까?",
+>      [
+>        {
+>          text: "취소",
+>          onPress: () => console.log("배달 수락이 취소되었습니다"),
+>        },
+>        { text: "수락", onPress: () => assignRider(event) },
+>      ]
+>    );
+>  };
+>
+> ...
+> 
+> // window.ReactNativeWebView.postMessage 를 통해 보냄 @ WebView
+> function onClick(requestIndex) {
+>   window.ReactNativeWebView.postMessage(JSON.stringify(${JSON.stringify(deliveryRequests)}[requestIndex]));
+> }
+>
+> ```
+>
+> 2) injectedJavaScript property 사용법
+> ```reactnative
+> // ref 및 injectedJavaScript property 설정 @ React native
+> <WebView
+>        ref={webviewRef}
+>        style={styles.webview}
+>        originWhitelist={["*"]}
+>        source={{ html: mapHtml }}
+>        injectedJavaScript={setMarkerPosition}
+>        onLoadEnd={() => setLoading(false)}
+>      />
+> }
+>
+> ...
+>
+> // WebView instance 만들기 @ React native 
+> const webviewRef = useRef(null);
+>
+> ...
+> 
+> // WebView에 넣을 javascript code를 만들어줌 @ React native 
+>  const setMarkerPosition = `
+>      (function() {
+>        riderMarker.setPosition(new kakao.maps.LatLng(${riderLocation.latitude}, ${riderLocation.longitude}));
+>        customOverlayForRider.setPosition(new kakao.maps.LatLng(${riderLocation.latitude}, ${riderLocation.longitude}));
+>      })();
+>    `;
+> 
+> ...
+>
+> // WebView instance를 사용하여 javascript code 주입 @ React native 
+>  useEffect(() => {
+>    if (webviewRef.current)
+>      webviewRef.current.injectJavaScript(setMarkerPosition);
+>  }, [riderLocation]);
+> ```
 
 
