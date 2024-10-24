@@ -30,6 +30,11 @@ https://github.com/WAGUWAGUUU/WAGUWAGU
 
 https://github.com/user-attachments/assets/28ee3ba9-a452-4219-afd1-1b09f6ba4344
 
+## <br>🧾 Delivery Sequence Diagram
+
+<img width="934" alt="image" src="https://github.com/user-attachments/assets/d066b529-c551-4d87-8a24-775e37603351">
+
+
 
 
 ## <br>🔧 Troubleshooting
